@@ -1,0 +1,316 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { QRScanner } from '../components/qr/QRScanner';
+import { Card, CardContent, CardHeader } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
+import { Badge } from '../components/ui/Badge';
+import { useWorkerStore } from '../stores/workerStore';
+import { useAttendanceStore } from '../stores/attendanceStore';
+import { useAuthStore } from '../stores/authStore';
+import { formatTime, formatCurrency } from '../lib/utils';
+import { CheckCircle, Clock, Package, AlertCircle, Timer } from 'lucide-react';
+import type { Worker, AttendanceWithWorker } from '../types/database';
+
+export const ScanPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const location = useLocation();
+  const { workers, fetchWorkers, getWorkerByQR } = useWorkerStore();
+  const {
+    todayRecords,
+    fetchTodayAttendance,
+    clockIn,
+    clockOut,
+    markCompletedByQuota,
+    otClockIn,
+    otClockOut,
+    getActiveAttendance,
+    isLoading,
+    error,
+    clearError,
+  } = useAttendanceStore();
+
+  const [scannedWorker, setScannedWorker] = useState<Worker | null>(null);
+  const [activeAttendance, setActiveAttendance] = useState<AttendanceWithWorker | null>(null);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
+  const [bagsCompleted, setBagsCompleted] = useState('');
+  const [notes, setNotes] = useState('');
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // OT Mode state
+  const [isOTMode, setIsOTMode] = useState(false);
+  
+  const isManager = user?.role === 'manager' || user?.role === 'admin';
+
+  useEffect(() => {
+    fetchWorkers();
+    fetchTodayAttendance();
+  }, [fetchWorkers, fetchTodayAttendance]);
+
+  const handleScan = async (qrCode: string) => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    clearError();
+    setMessage(null);
+
+    const worker = getWorkerByQR(qrCode);
+    
+    if (!worker) {
+      setMessage({ type: 'error', text: 'Worker not found. Invalid QR code.' });
+      setIsProcessing(false);
+      return;
+    }
+
+    // If in OT mode, handle OT clock in/out
+    if (isOTMode) {
+      // Check if worker has active OT session (ot_clock_in but no ot_clock_out)
+      const todayRecord = todayRecords.find(
+        (r) => r.worker_id === worker.id && (r.status === 'clocked_in' || r.status === 'clocked_out')
+      );
+
+      if (!todayRecord) {
+        setMessage({ type: 'error', text: `${worker.full_name} must clock in for regular hours first.` });
+        setIsProcessing(false);
+        setIsOTMode(false);
+        return;
+      }
+
+      // Check if already in OT session
+      if (todayRecord.ot_clock_in && !todayRecord.ot_clock_out) {
+        // OT Clock Out
+        const success = await otClockOut(worker.id);
+        if (success) {
+          setMessage({ type: 'success', text: `${worker.full_name} OT clocked out!` });
+          fetchTodayAttendance();
+        }
+      } else {
+        // OT Clock In
+        const success = await otClockIn(worker.id);
+        if (success) {
+          setMessage({ type: 'success', text: `${worker.full_name} OT clocked in!` });
+          fetchTodayAttendance();
+        }
+      }
+
+      setIsOTMode(false);
+      setIsProcessing(false);
+      return;
+    }
+
+    setScannedWorker(worker);
+    const active = getActiveAttendance(worker.id);
+    setActiveAttendance(active || null);
+
+    if (active) {
+      setShowQuotaModal(true);
+    } else {
+      const result = await clockIn(worker.id, user?.id || '');
+      if (result) {
+        setMessage({ type: 'success', text: `${worker.full_name} clocked in successfully!` });
+      }
+    }
+
+    setIsProcessing(false);
+  };
+
+
+  const handleClockOut = async () => {
+    if (!activeAttendance) return;
+    
+    await clockOut(activeAttendance.id);
+    setMessage({ type: 'success', text: `${scannedWorker?.full_name} clocked out successfully!` });
+    setShowQuotaModal(false);
+    setScannedWorker(null);
+    setActiveAttendance(null);
+    fetchTodayAttendance();
+  };
+
+  const handleQuotaComplete = async () => {
+    if (!activeAttendance || !bagsCompleted) return;
+    
+    await markCompletedByQuota(activeAttendance.id, parseInt(bagsCompleted), notes);
+    setMessage({ type: 'success', text: `${scannedWorker?.full_name} marked as quota completed!` });
+    setShowQuotaModal(false);
+    setScannedWorker(null);
+    setActiveAttendance(null);
+    setBagsCompleted('');
+    setNotes('');
+    fetchTodayAttendance();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Scan QR Code</h1>
+          <p className="text-gray-500">Scan worker QR codes to clock in/out</p>
+        </div>
+        {isManager && (
+          <Button
+            variant={isOTMode ? 'danger' : 'secondary'}
+            onClick={() => setIsOTMode(!isOTMode)}
+            className="flex items-center gap-2"
+          >
+            <Timer className="w-5 h-5" />
+            {isOTMode ? 'Cancel OT Mode' : 'Add Overtime'}
+          </Button>
+        )}
+      </div>
+
+      {isOTMode && (
+        <div className="p-4 rounded-lg bg-orange-50 border border-orange-200 text-orange-800 flex items-center gap-3">
+          <Timer className="w-5 h-5" />
+          <span className="font-medium">OT Mode Active:</span> Scan worker QR code to add overtime hours
+        </div>
+      )}
+
+      {message && (
+        <div
+          className={`p-4 rounded-lg flex items-center gap-3 ${
+            message.type === 'success'
+              ? 'bg-green-50 text-green-800'
+              : 'bg-red-50 text-red-800'
+          }`}
+        >
+          {message.type === 'success' ? (
+            <CheckCircle className="w-5 h-5" />
+          ) : (
+            <AlertCircle className="w-5 h-5" />
+          )}
+          {message.text}
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 text-red-800 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5" />
+          {error}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <QRScanner key={location.pathname} onScan={handleScan} isProcessing={isProcessing} />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-lg font-semibold text-gray-900">Currently Working</h2>
+          </CardHeader>
+          <CardContent className="p-0">
+            {todayRecords.filter((r) => r.status === 'clocked_in').length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                No workers currently clocked in
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                {todayRecords
+                  .filter((r) => r.status === 'clocked_in')
+                  .map((record) => (
+                    <div
+                      key={record.id}
+                      className="p-4 flex items-center justify-between hover:bg-gray-50"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {record.worker?.full_name}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Clocked in at {formatTime(record.clock_in)}
+                        </p>
+                      </div>
+                      <Badge variant="info">
+                        <Clock className="w-3 h-3 mr-1" />
+                        Working
+                      </Badge>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Modal
+        isOpen={showQuotaModal}
+        onClose={() => {
+          setShowQuotaModal(false);
+          setScannedWorker(null);
+          setActiveAttendance(null);
+        }}
+        title="Clock Out Options"
+        size="md"
+      >
+        {scannedWorker && activeAttendance && (
+          <div className="space-y-6">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="font-semibold text-gray-900">{scannedWorker.full_name}</h3>
+              <p className="text-sm text-gray-500">ID: {scannedWorker.employee_id}</p>
+              <p className="text-sm text-gray-500">
+                Clocked in at: {formatTime(activeAttendance.clock_in)}
+              </p>
+              <p className="text-sm text-gray-500">
+                Daily Rate: {formatCurrency(scannedWorker.daily_rate)}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <Button
+                variant="primary"
+                className="w-full"
+                size="lg"
+                onClick={handleClockOut}
+                isLoading={isLoading}
+              >
+                <Clock className="w-5 h-5 mr-2" />
+                Regular Clock Out
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-gray-700">
+                  Mark as Quota Completed (Early finish)
+                </p>
+                <Input
+                  label="Bags Completed"
+                  type="number"
+                  value={bagsCompleted}
+                  onChange={(e) => setBagsCompleted(e.target.value)}
+                  placeholder="Enter number of bags"
+                />
+                <Input
+                  label="Notes (Optional)"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Any additional notes"
+                />
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={handleQuotaComplete}
+                  disabled={!bagsCompleted}
+                  isLoading={isLoading}
+                >
+                  <Package className="w-5 h-5 mr-2" />
+                  Complete by Quota
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+    </div>
+  );
+};

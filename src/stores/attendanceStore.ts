@@ -1,0 +1,316 @@
+import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
+import { auditLog } from '../lib/auditLog';
+import type { Attendance, AttendanceWithWorker } from '../types/database';
+import { differenceInMinutes, startOfDay, endOfDay } from 'date-fns';
+
+interface AttendanceState {
+  attendanceRecords: AttendanceWithWorker[];
+  todayRecords: AttendanceWithWorker[];
+  isLoading: boolean;
+  error: string | null;
+  fetchAttendance: (startDate?: Date, endDate?: Date) => Promise<void>;
+  fetchTodayAttendance: () => Promise<void>;
+  clockIn: (workerId: string, scannedBy: string) => Promise<Attendance | null>;
+  clockOut: (attendanceId: string) => Promise<void>;
+  markCompletedByQuota: (attendanceId: string, bagsCompleted: number, notes?: string) => Promise<void>;
+  otClockIn: (workerId: string) => Promise<boolean>;
+  otClockOut: (workerId: string) => Promise<boolean>;
+  getActiveAttendance: (workerId: string) => AttendanceWithWorker | undefined;
+  clearError: () => void;
+}
+
+export const useAttendanceStore = create<AttendanceState>((set, get) => ({
+  attendanceRecords: [],
+  todayRecords: [],
+  isLoading: false,
+  error: null,
+
+  fetchAttendance: async (startDate?: Date, endDate?: Date) => {
+    set({ isLoading: true, error: null });
+    try {
+      let query = supabase
+        .from('attendance')
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .order('clock_in', { ascending: false });
+
+      if (startDate) {
+        query = query.gte('clock_in', startOfDay(startDate).toISOString());
+      }
+      if (endDate) {
+        query = query.lte('clock_in', endOfDay(endDate).toISOString());
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      set({ attendanceRecords: data || [], isLoading: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      set({ error: message, isLoading: false });
+    }
+  },
+
+  fetchTodayAttendance: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const today = new Date();
+      const { data, error } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .gte('clock_in', startOfDay(today).toISOString())
+        .lte('clock_in', endOfDay(today).toISOString())
+        .order('clock_in', { ascending: false });
+
+      if (error) throw error;
+      set({ todayRecords: data || [], isLoading: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      set({ error: message, isLoading: false });
+    }
+  },
+
+  clockIn: async (workerId: string, scannedBy: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const existingActive = get().todayRecords.find(
+        (r) => r.worker_id === workerId && r.status === 'clocked_in'
+      );
+
+      if (existingActive) {
+        throw new Error('Worker is already clocked in');
+      }
+
+      const { data, error } = await supabase
+        .from('attendance')
+        // @ts-ignore - Supabase type inference issue
+        .insert({
+          worker_id: workerId,
+          clock_in: new Date().toISOString(),
+          scanned_by: scannedBy,
+          status: 'clocked_in',
+        })
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      set((state) => ({
+        todayRecords: [data, ...state.todayRecords],
+        isLoading: false,
+      }));
+      
+      // Log clock in
+      const workerName = data.worker?.full_name || 'Unknown';
+      await auditLog.logClockIn(workerId, workerName, scannedBy);
+      
+      return data;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      set({ error: message, isLoading: false });
+      return null;
+    }
+  },
+
+  clockOut: async (attendanceId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const record = get().todayRecords.find((r) => r.id === attendanceId);
+      if (!record) throw new Error('Attendance record not found');
+
+      const clockOut = new Date();
+      const clockIn = new Date(record.clock_in);
+      const minutesWorked = differenceInMinutes(clockOut, clockIn);
+      const actualHoursWorked = Math.round((minutesWorked / 60) * 100) / 100;
+      // Cap regular hours at 8 max - OT requires manager approval via OT scan
+      const hoursWorked = Math.min(actualHoursWorked, 8);
+      // OT is NOT automatically calculated - manager must use OT scan mode
+      const overtimeHours = record.overtime_hours || 0;
+
+      const { data, error } = await supabase
+        .from('attendance')
+        .update({
+          clock_out: clockOut.toISOString(),
+          hours_worked: hoursWorked,
+          overtime_hours: overtimeHours,
+          status: 'clocked_out',
+        })
+        .eq('id', attendanceId)
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      set((state) => ({
+        todayRecords: state.todayRecords.map((r) =>
+          r.id === attendanceId ? data : r
+        ),
+        isLoading: false,
+      }));
+      
+      // Log clock out
+      const workerName = data.worker?.full_name || 'Unknown';
+      await auditLog.logClockOut(record.worker_id, workerName, hoursWorked, overtimeHours);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      set({ error: message, isLoading: false });
+    }
+  },
+
+  markCompletedByQuota: async (attendanceId: string, bagsCompleted: number, notes?: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const record = get().todayRecords.find((r) => r.id === attendanceId);
+      if (!record) throw new Error('Attendance record not found');
+
+      const clockOut = new Date();
+      const clockIn = new Date(record.clock_in);
+      const minutesWorked = differenceInMinutes(clockOut, clockIn);
+      const hoursWorked = Math.round((minutesWorked / 60) * 100) / 100;
+
+      const { data, error } = await supabase
+        .from('attendance')
+        .update({
+          clock_out: clockOut.toISOString(),
+          hours_worked: hoursWorked,
+          overtime_hours: 0,
+          status: 'completed_quota',
+          completed_by_quota: true,
+          bags_completed: bagsCompleted,
+          notes: notes || null,
+        })
+        .eq('id', attendanceId)
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .single();
+
+      if (error) throw error;
+      set((state) => ({
+        todayRecords: state.todayRecords.map((r) =>
+          r.id === attendanceId ? data : r
+        ),
+        isLoading: false,
+      }));
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+    }
+  },
+
+  otClockIn: async (workerId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      // Find today's attendance record for this worker
+      const record = get().todayRecords.find(
+        (r) => r.worker_id === workerId && (r.status === 'clocked_in' || r.status === 'clocked_out')
+      );
+
+      if (!record) {
+        throw new Error('No attendance record found for today. Worker must clock in first.');
+      }
+
+      // Check if already in OT
+      if (record.ot_clock_in && !record.ot_clock_out) {
+        throw new Error('Worker is already clocked in for overtime.');
+      }
+
+      const { data, error } = await supabase
+        .from('attendance')
+        .update({
+          ot_clock_in: new Date().toISOString(),
+          ot_clock_out: null,
+        })
+        .eq('id', record.id)
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        todayRecords: state.todayRecords.map((r) =>
+          r.id === record.id ? data : r
+        ),
+        isLoading: false,
+      }));
+
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      set({ error: message, isLoading: false });
+      return false;
+    }
+  },
+
+  otClockOut: async (workerId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      // Find today's attendance record with active OT
+      const record = get().todayRecords.find(
+        (r) => r.worker_id === workerId && r.ot_clock_in && !r.ot_clock_out
+      );
+
+      if (!record) {
+        throw new Error('No active overtime session found for this worker.');
+      }
+
+      const otClockOut = new Date();
+      const otClockIn = new Date(record.ot_clock_in!);
+      const otMinutes = differenceInMinutes(otClockOut, otClockIn);
+      const otHours = Math.round((otMinutes / 60) * 100) / 100;
+
+      // Add to existing overtime hours
+      const currentOT = record.overtime_hours || 0;
+      const totalOT = currentOT + otHours;
+
+      const { data, error } = await supabase
+        .from('attendance')
+        .update({
+          ot_clock_out: otClockOut.toISOString(),
+          overtime_hours: totalOT,
+        })
+        .eq('id', record.id)
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      set((state) => ({
+        todayRecords: state.todayRecords.map((r) =>
+          r.id === record.id ? data : r
+        ),
+        isLoading: false,
+      }));
+
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      set({ error: message, isLoading: false });
+      return false;
+    }
+  },
+
+  getActiveAttendance: (workerId: string) => {
+    return get().todayRecords.find(
+      (r) => r.worker_id === workerId && r.status === 'clocked_in'
+    );
+  },
+
+  clearError: () => set({ error: null }),
+}));

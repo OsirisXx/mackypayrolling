@@ -1,0 +1,68 @@
+name|days|ot_hours|daily_rate|bonus|sss|total
+Bacol, Vivian|7|21|350|50|560|3418.75
+Ylagan Robert|7|15|500|0|1060|4437.5
+Abaday Emelyn|6|0|350|0|0|2100.0
+Abaday Ike Jun|6|12|400|0|0|3000.0
+Absin Jimmy|4|10|400|0|0|2100.0
+Abunda Bobby|6|24|400|0|0|3600.0
+Abunda, Renjay|4|19|400|0|0|2550.0
+Alimbog , Gabby|4|11|400|0|0|2150.0
+Alimbog , jhon|6|8|400|0|0|2800.0
+Alimbog Hilbert|5|0|400|0|0|2000.0
+Alimbog, Livy|5|7|400|0|0|2350.0
+Alimbog,marque|6|4|400|0|0|2600.0
+Amoncio,Jendel|5|8|400|0|0|2400.0
+Andaol Zerbi|7|20|400|0|0|3800.0
+Angan, e|7|0|400|0|0|2800.0
+Arnesx Sarinao|6|8|400|0|0|2800.0
+Atlawan, jimboy|7|15|400|0|0|3550.0
+Baculio Daren|5|0|400|0|0|2000.0
+Baculio Rosito|7|0|400|0|0|2800.0
+Balbuena Randy|5|12|400|0|0|2600.0
+bayantong Edgar|5|26|500|0|0|4125.0
+Bulak Marvin|7|32|400|0|0|4400.0
+Bulak Melvin|6|0|400|0|0|2400.0
+Bulak Norvin|4|0|400|0|0|1600.0
+Bulak, Alvin|7|0|400|0|0|2800.0
+Cabornay, Celio|7|0|400|0|0|2800.0
+Camahay Diego|6|14|400|0|0|3100.0
+Cartahan , Kevin|6|8|400|0|0|2800.0
+Conahan,Aaron|4|11|400|0|0|2150.0
+Curbo Regie|5|11|400|0|0|2550.0
+Dagalia Cruz Popoy|5|4|400|0|0|2200.0
+Dagpong crist|5|4|400|0|0|2200.0
+Datuin James|6|20|400|0|0|3400.0
+Decaso Jclaid|6|28|400|0|0|3800.0
+Espina Aida|5|8|350|0|0|2100.0
+Felizarda,Lintacan|6|0|400|0|0|2400.0
+Funa, Muela|7|21|350|0|0|3368.75
+Gonhay Jemmuel|5|6|400|0|0|2300.0
+Guilan MEnard|4|0|400|0|0|1600.0
+Lan ayan Raul|5|26|400|0|0|3300.0
+Lan-ayan Renemee|5|8|400|0|0|2400.0
+Lastimosa Ricky|5|16|400|0|0|2800.0
+Mahunyag, christ|5|7|400|0|0|2350.0
+Marjunel Angan|5|8|400|0|0|2400.0
+Pagayod Beebth|5|2|400|0|0|2100.0
+Pagayon jason|4|0|400|0|0|1600.0
+Pagayon Joanrd|5|6|400|0|0|2300.0
+Renel Angan|7|12|550|0|0|4675.0
+Sagansan Jerry|7|20|400|0|0|3800.0
+sagansan renie|6|19|400|0|0|3350.0
+Sagansan, Dexter|4|2|400|0|0|1700.0
+Salait Ariel|7|0|400|0|0|2800.0
+Sandalan jevin|6|24|400|0|0|3600.0
+Sumayan Roland|3|11|400|0|0|1750.0
+ubanan Enel|5|6|400|0|0|2300.0
+Yake jordan|2|0|400|0|0|800.0
+Yake rodonio|5|0|400|0|0|2000.0
+Yanuhon JOvil|4|0|400|0|0|1600.0
+Yunson Alfred|5|14|400|0|0|2700.0
+Yunson niper|6|28|400|0|0|3800.0
+Alimbog,Rolly|4|0|400|0|0|1600.0
+Francisco, Mark|4|0|400|0|0|1600.0
+Alimbog, Alquin|4|0|400|0|0|1600.0
+Igot, Marani|3|0|400|0|0|1200.0
+Lagnas, Jovan|3|0|400|0|0|1200.0
+Catuan, Ryan|4|8|400|0|0|2000.0
+Tumantan, Roalndo|4|0|400|0|0|1600.0

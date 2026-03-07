@@ -1,0 +1,879 @@
+﻿
+=== Bacol, Vivian (row 5) ===
+  Days detail: [1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3]
+  L(days): 7, M(OT): 21
+  N(total OT): formula==O5/8*M5, value=918.75
+  O(daily rate): 350
+  P(bonus/ded): formula=560, value=560
+  Q(total): formula==L5*O5+N5+50, value=3418.75
+  R(net): formula==Q5-P5, value=2858.75
+
+=== Ylagan Robert (row 6) ===
+  Days detail: [1.4, 1.4, 1.7, 1, 1, 1, 1]
+  L(days): 7, M(OT): 15
+  N(total OT): formula==O6/8*M6, value=937.5
+  O(daily rate): 500
+  P(bonus/ded): formula==500+560, value=1060
+  Q(total): formula==L6*O6+N6, value=4437.5
+  R(net): formula==Q6-P6, value=3377.5
+
+=== Abaday Emelyn (row 9) ===
+  Days detail: [1, 1, None, 1, 1, 1, 1]
+  L(days): =SUM(E9:K9), M(OT): None
+  N(total OT): formula==O9/8*M9, value=0
+  O(daily rate): 350
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L9*O9+N9, value=2100
+  R(net): formula==Q9-P9, value=2100
+
+=== Abaday Ike Jun (row 10) ===
+  Days detail: [1.4, 1.4, None, 1.4, 1, 1, 1]
+  L(days): 6, M(OT): 12
+  N(total OT): formula==O10/8*M10, value=600
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L10*O10+N10, value=3000
+  R(net): formula==Q10-P10, value=3000
+
+=== Absin Jimmy (row 11) ===
+  Days detail: [None, None, 1.2, None, 2, 1, 1]
+  L(days): 4, M(OT): 10
+  N(total OT): formula==O11/8*M11, value=500
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L11*O11+N11, value=2100
+  R(net): formula==Q11-P11, value=2100
+
+=== Abunda Bobby (row 12) ===
+  Days detail: [1.4, 1.4, None, 3, 1, 1, 1]
+  L(days): 6, M(OT): 24
+  N(total OT): formula==O12/8*M12, value=1200
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L12*O12+N12, value=3600
+  R(net): formula==Q12-P12, value=3600
+
+=== Abunda, Renjay (row 13) ===
+  Days detail: [1.4, 1.4, 0.3, None, None, 2, 1]
+  L(days): 4, M(OT): 19
+  N(total OT): formula==O13/8*M13, value=950
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L13*O13+N13, value=2550
+  R(net): formula==Q13-P13, value=2550
+
+=== Alimbog , Gabby (row 14) ===
+  Days detail: [0.4, 1.4, 0.3, None, 1, 1, 1]
+  L(days): 4, M(OT): 11
+  N(total OT): formula==O14/8*M14, value=550
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L14*O14+N14, value=2150
+  R(net): formula==Q14-P14, value=2150
+
+=== Alimbog , jhon (row 15) ===
+  Days detail: [1.4, 1.4, None, 1, 1, 1, 1]
+  L(days): 6, M(OT): 8
+  N(total OT): formula==O15/8*M15, value=400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L15*O15+N15, value=2800
+  R(net): formula==Q15-P15, value=2800
+
+=== Alimbog Hilbert (row 16) ===
+  Days detail: [None, 1, None, 1, 1, 1, 1]
+  L(days): =SUM(E16:K16), M(OT): None
+  N(total OT): formula==O16/8*M16, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L16*O16+N16, value=2000
+  R(net): formula==Q16-P16, value=2000
+
+=== Alimbog, Livy (row 17) ===
+  Days detail: [None, 1, 0.7, 1, 1, 1, 1]
+  L(days): 5, M(OT): 7
+  N(total OT): formula==O17/8*M17, value=350
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L17*O17+N17, value=2350
+  R(net): formula==Q17-P17, value=2350
+
+=== Alimbog,marque (row 18) ===
+  Days detail: [1.4, None, 1, 1, 1, 1, 1]
+  L(days): 6, M(OT): 4
+  N(total OT): formula==O18/8*M18, value=200
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L18*O18+N18, value=2600
+  R(net): formula==Q18-P18, value=2600
+
+=== Amoncio,Jendel (row 19) ===
+  Days detail: [None, 2, None, 1, 1, 1, 1]
+  L(days): 5, M(OT): 8
+  N(total OT): formula==O19/8*M19, value=400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L19*O19+N19, value=2400
+  R(net): formula==Q19-P19, value=2400
+
+=== Andaol Zerbi (row 20) ===
+  Days detail: [1.4, 1.4, 1.4, 2, 1, 1, 1]
+  L(days): 7, M(OT): 20
+  N(total OT): formula==O20/8*M20, value=1000
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L20*O20+N20, value=3800
+  R(net): formula==Q20-P20, value=3800
+
+=== Angan, e (row 21) ===
+  Days detail: [1, 1, 1, 1, 1, 1, 1]
+  L(days): =SUM(E21:K21), M(OT): None
+  N(total OT): formula==O21/8*M21, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L21*O21+N21, value=2800
+  R(net): formula==Q21-P21, value=2800
+
+=== Arnesx Sarinao (row 22) ===
+  Days detail: [2, 1, 1, 1, None, 1, 1]
+  L(days): 6, M(OT): 8
+  N(total OT): formula==O22/8*M22, value=400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L22*O22+N22, value=2800
+  R(net): formula==Q22-P22, value=2800
+
+=== Atlawan, jimboy (row 23) ===
+  Days detail: [1.4, 1.4, 1.7, 1, 1, 1, 1]
+  L(days): 7, M(OT): 15
+  N(total OT): formula==O23/8*M23, value=750
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L23*O23+N23, value=3550
+  R(net): formula==Q23-P23, value=3550
+
+=== Baculio Daren (row 24) ===
+  Days detail: [1, None, None, 1, 1, 1, 1]
+  L(days): =SUM(E24:K24), M(OT): None
+  N(total OT): formula==O24/8*M24, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L24*O24+N24, value=2000
+  R(net): formula==Q24-P24, value=2000
+
+=== Baculio Rosito (row 25) ===
+  Days detail: [1, 1, 1, 1, 1, 1, 1]
+  L(days): =SUM(E25:K25), M(OT): None
+  N(total OT): formula==O25/8*M25, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L25*O25+N25, value=2800
+  R(net): formula==Q25-P25, value=2800
+
+=== Balbuena Randy (row 26) ===
+  Days detail: [1.4, None, 1, 2, 1, None, 1]
+  L(days): 5, M(OT): 12
+  N(total OT): formula==O26/8*M26, value=600
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L26*O26+N26, value=2600
+  R(net): formula==Q26-P26, value=2600
+
+=== bayantong Edgar (row 27) ===
+  Days detail: [1.4, 1.4, 1.4, 1.4, 1.4, 0.6, None]
+  L(days): 5, M(OT): 26
+  N(total OT): formula==O27/8*M27, value=1625
+  O(daily rate): 500
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L27*O27+N27, value=4125
+  R(net): formula==Q27-P27, value=4125
+
+=== Bulak Marvin (row 28) ===
+  Days detail: [2, 2, 1, 1, 2, 1, 2]
+  L(days): 7, M(OT): 32
+  N(total OT): formula==O28/8*M28, value=1600
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L28*O28+N28, value=4400
+  R(net): formula==Q28-P28, value=4400
+
+=== Bulak Melvin (row 29) ===
+  Days detail: [1, 1, None, 1, 1, 1, 1]
+  L(days): =SUM(E29:K29), M(OT): None
+  N(total OT): formula==O29/8*M29, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L29*O29+N29, value=2400
+  R(net): formula==Q29-P29, value=2400
+
+=== Bulak Norvin (row 30) ===
+  Days detail: [1, 1, None, None, None, 1, 1]
+  L(days): =SUM(E30:K30), M(OT): None
+  N(total OT): formula==O30/8*M30, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L30*O30+N30, value=1600
+  R(net): formula==Q30-P30, value=1600
+
+=== Bulak, Alvin (row 31) ===
+  Days detail: [1, 1, 1, 1, 1, 1, 1]
+  L(days): =SUM(E31:K31), M(OT): None
+  N(total OT): formula==O31/8*M31, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L31*O31+N31, value=2800
+  R(net): formula==Q31-P31, value=2800
+
+=== Cabornay, Celio (row 32) ===
+  Days detail: [1, 1, 1, 1, 1, 1, 1]
+  L(days): =SUM(E32:K32), M(OT): None
+  N(total OT): formula==O32/8*M32, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L32*O32+N32, value=2800
+  R(net): formula==Q32-P32, value=2800
+
+=== Camahay Diego (row 33) ===
+  Days detail: [1.4, 1.4, 1.4, 1, 0.2, 1, 1]
+  L(days): 6, M(OT): 14
+  N(total OT): formula==O33/8*M33, value=700
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L33*O33+N33, value=3100
+  R(net): formula==Q33-P33, value=3100
+
+=== Cartahan , Kevin (row 34) ===
+  Days detail: [None, 1.4, 1.4, 1, 1, 1, 1]
+  L(days): 6, M(OT): 8
+  N(total OT): formula==O34/8*M34, value=400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L34*O34+N34, value=2800
+  R(net): formula==Q34-P34, value=2800
+
+=== Cartahan, boboy (row 35) ===
+  Days detail: [None, None, None, None, None, None, None]
+  L(days): =SUM(E35:K35), M(OT): None
+  N(total OT): formula==O35/8*M35, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L35*O35+N35, value=0
+  R(net): formula==Q35-P35, value=0
+
+=== Conahan,Aaron (row 36) ===
+  Days detail: [0.4, 1.4, 0.3, None, 1, 1, 1]
+  L(days): 4, M(OT): 11
+  N(total OT): formula==O36/8*M36, value=550
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L36*O36+N36, value=2150
+  R(net): formula==Q36-P36, value=2150
+
+=== Curbo Regie (row 37) ===
+  Days detail: [1.4, 1.4, 0.3, 1, 1, 1, None]
+  L(days): 5, M(OT): 11
+  N(total OT): formula==O37/8*M37, value=550
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L37*O37+N37, value=2550
+  R(net): formula==Q37-P37, value=2550
+
+=== Dagalia Cruz Popoy (row 38) ===
+  Days detail: [1.4, None, None, 1, 1, 1, 1]
+  L(days): 5, M(OT): 4
+  N(total OT): formula==O38/8*M38, value=200
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L38*O38+N38, value=2200
+  R(net): formula==Q38-P38, value=2200
+
+=== Dagpong crist (row 39) ===
+  Days detail: [None, 1.4, None, 1, 1, 1, 1]
+  L(days): 5, M(OT): 4
+  N(total OT): formula==O39/8*M39, value=200
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L39*O39+N39, value=2200
+  R(net): formula==Q39-P39, value=2200
+
+=== Datuin James (row 40) ===
+  Days detail: [1.4, 1.4, 1.4, 2, 1, 1, None]
+  L(days): 6, M(OT): 20
+  N(total OT): formula==O40/8*M40, value=1000
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L40*O40+N40, value=3400
+  R(net): formula==Q40-P40, value=3400
+
+=== Decaso Jclaid (row 41) ===
+  Days detail: [None, 1.4, 2, 3, 1, 1, 1]
+  L(days): 6, M(OT): 28
+  N(total OT): formula==O41/8*M41, value=1400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L41*O41+N41, value=3800
+  R(net): formula==Q41-P41, value=3800
+
+=== Espina Aida (row 42) ===
+  Days detail: [1, 1, None, 1, 1, 2, None]
+  L(days): 5, M(OT): 8
+  N(total OT): formula==O42/8*M42, value=350
+  O(daily rate): 350
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L42*O42+N42, value=2100
+  R(net): formula==Q42-P42, value=2100
+
+=== Felizarda,Lintacan (row 43) ===
+  Days detail: [1, 1, None, 1, 1, 1, 1]
+  L(days): =SUM(E43:K43), M(OT): None
+  N(total OT): formula==O43/8*M43, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L43*O43+N43, value=2400
+  R(net): formula==Q43-P43, value=2400
+
+=== Funa, Muela (row 44) ===
+  Days detail: [1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3]
+  L(days): 7, M(OT): 21
+  N(total OT): formula==O44/8*M44, value=918.75
+  O(daily rate): 350
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L44*O44+N44, value=3368.75
+  R(net): formula==Q44-P44, value=3368.75
+
+=== Gonhay Jemmuel (row 45) ===
+  Days detail: [1.4, None, 1.2, None, 1, 1, 1]
+  L(days): 5, M(OT): 6
+  N(total OT): formula==O45/8*M45, value=300
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L45*O45+N45, value=2300
+  R(net): formula==Q45-P45, value=2300
+
+=== Guilan MEnard (row 46) ===
+  Days detail: [1, 1, None, None, None, 1, 1]
+  L(days): =SUM(E46:K46), M(OT): None
+  N(total OT): formula==O46/8*M46, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L46*O46+N46, value=1600
+  R(net): formula==Q46-P46, value=1600
+
+=== Lan ayan Raul (row 47) ===
+  Days detail: [1.4, 3, 0.6, None, 1, 1, 1]
+  L(days): 5, M(OT): 26
+  N(total OT): formula==O47/8*M47, value=1300
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L47*O47+N47, value=3300
+  R(net): formula==Q47-P47, value=3300
+
+=== Lan-ayan Renemee (row 48) ===
+  Days detail: [1.4, 1.4, None, None, 1, 1, 1]
+  L(days): 5, M(OT): 8
+  N(total OT): formula==O48/8*M48, value=400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L48*O48+N48, value=2400
+  R(net): formula==Q48-P48, value=2400
+
+=== Lastimosa Ricky (row 49) ===
+  Days detail: [2, 1, None, None, 2, 1, 1]
+  L(days): 5, M(OT): 16
+  N(total OT): formula==O49/8*M49, value=800
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L49*O49+N49, value=2800
+  R(net): formula==Q49-P49, value=2800
+
+=== Mahunyag, christ (row 50) ===
+  Days detail: [None, 1, 0.7, 1, 1, 1, 1]
+  L(days): 5, M(OT): 7
+  N(total OT): formula==O50/8*M50, value=350
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L50*O50+N50, value=2350
+  R(net): formula==Q50-P50, value=2350
+
+=== Marjunel Angan (row 51) ===
+  Days detail: [1.4, 1.4, None, 1, 1, 1, None]
+  L(days): 5, M(OT): 8
+  N(total OT): formula==O51/8*M51, value=400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L51*O51+N51, value=2400
+  R(net): formula==Q51-P51, value=2400
+
+=== Pagayod Beebth (row 52) ===
+  Days detail: [1, None, 1.2, None, 1, 1, 1]
+  L(days): 5, M(OT): 2
+  N(total OT): formula==O52/8*M52, value=100
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L52*O52+N52, value=2100
+  R(net): formula==Q52-P52, value=2100
+
+=== Pagayon jason (row 53) ===
+  Days detail: [None, None, None, 1, 1, 1, 1]
+  L(days): =SUM(E53:K53), M(OT): None
+  N(total OT): formula==O53/8*M53, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L53*O53+N53, value=1600
+  R(net): formula==Q53-P53, value=1600
+
+=== Pagayon Joanrd (row 54) ===
+  Days detail: [1.4, None, 1.2, None, 1, 1, 1]
+  L(days): 5, M(OT): 6
+  N(total OT): formula==O54/8*M54, value=300
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L54*O54+N54, value=2300
+  R(net): formula==Q54-P54, value=2300
+
+=== Renel Angan (row 55) ===
+  Days detail: [1, 1.3, 1, 1.3, 1.3, 1, 1.3]
+  L(days): 7, M(OT): 12
+  N(total OT): formula==O55/8*M55, value=825
+  O(daily rate): 550
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L55*O55+N55, value=4675
+  R(net): formula==Q55-P55, value=4675
+
+=== Sagansan Jerry (row 56) ===
+  Days detail: [1.4, 1.4, 1.4, 1, 2, 1, 1]
+  L(days): 7, M(OT): 20
+  N(total OT): formula==O56/8*M56, value=1000
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L56*O56+N56, value=3800
+  R(net): formula==Q56-P56, value=3800
+
+=== sagansan renie (row 57) ===
+  Days detail: [None, 1.4, 1.7, 1, 1, 2, 1]
+  L(days): 6, M(OT): 19
+  N(total OT): formula==O57/8*M57, value=950
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L57*O57+N57, value=3350
+  R(net): formula==Q57-P57, value=3350
+
+=== Sagansan, Dexter (row 58) ===
+  Days detail: [1, 1, None, None, 0.2, 1, 1]
+  L(days): 4, M(OT): 2
+  N(total OT): formula==O58/8*M58, value=100
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L58*O58+N58, value=1700
+  R(net): formula==Q58-P58, value=1700
+
+=== Salait Ariel (row 59) ===
+  Days detail: [1, 1, 1, 1, 1, 1, 1]
+  L(days): =SUM(E59:K59), M(OT): None
+  N(total OT): formula==O59/8*M59, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L59*O59+N59, value=2800
+  R(net): formula==Q59-P59, value=2800
+
+=== Sandalan jevin (row 60) ===
+  Days detail: [2.4, 1.4, None, 2, 1, 1, 1]
+  L(days): 6, M(OT): 24
+  N(total OT): formula==O60/8*M60, value=1200
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L60*O60+N60, value=3600
+  R(net): formula==Q60-P60, value=3600
+
+=== Sumayan Roland (row 61) ===
+  Days detail: [1.4, 1.4, 0.3, None, None, 1, None]
+  L(days): 3, M(OT): 11
+  N(total OT): formula==O61/8*M61, value=550
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L61*O61+N61, value=1750
+  R(net): formula==Q61-P61, value=1750
+
+=== ubanan Enel (row 62) ===
+  Days detail: [1.4, 0.2, None, 1, 1, 1, 1]
+  L(days): 5, M(OT): 6
+  N(total OT): formula==O62/8*M62, value=300
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L62*O62+N62, value=2300
+  R(net): formula==Q62-P62, value=2300
+
+=== Yake jordan (row 63) ===
+  Days detail: [1, 1, None, None, None, None, None]
+  L(days): =SUM(E63:K63), M(OT): None
+  N(total OT): formula==O63/8*M63, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L63*O63+N63, value=800
+  R(net): formula==Q63-P63, value=800
+
+=== Yake rex (row 64) ===
+  Days detail: [None, None, None, None, None, None, None]
+  L(days): =SUM(E64:K64), M(OT): None
+  N(total OT): formula==O64/8*M64, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L64*O64+N64, value=0
+  R(net): formula==Q64-P64, value=0
+
+=== Yake rodonio (row 65) ===
+  Days detail: [1, 1, None, 1, None, 1, 1]
+  L(days): =SUM(E65:K65), M(OT): None
+  N(total OT): formula==O65/8*M65, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L65*O65+N65, value=2000
+  R(net): formula==Q65-P65, value=2000
+
+=== Yanuhon JOvil (row 66) ===
+  Days detail: [None, None, None, 1, 1, 1, 1]
+  L(days): =SUM(E66:K66), M(OT): None
+  N(total OT): formula==O66/8*M66, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L66*O66+N66, value=1600
+  R(net): formula==Q66-P66, value=1600
+
+=== Yunson Alfred (row 67) ===
+  Days detail: [None, 1, 2.6, 1, 1, None, 1]
+  L(days): 5, M(OT): 14
+  N(total OT): formula==O67/8*M67, value=700
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L67*O67+N67, value=2700
+  R(net): formula==Q67-P67, value=2700
+
+=== Yunson niper (row 68) ===
+  Days detail: [1, 2, None, 2, 2, 1.2, 1.2]
+  L(days): 6, M(OT): 28
+  N(total OT): formula==O68/8*M68, value=1400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L68*O68+N68, value=3800
+  R(net): formula==Q68-P68, value=3800
+
+=== Alimbog,Rolly (row 69) ===
+  Days detail: [None, None, None, 1, 1, 1, 1]
+  L(days): =SUM(E69:K69), M(OT): None
+  N(total OT): formula==O69/8*M69, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L69*O69+N69, value=1600
+  R(net): formula==Q69-P69, value=1600
+
+=== Francisco, Mark (row 70) ===
+  Days detail: [None, None, None, 1, 1, 1, 1]
+  L(days): =SUM(E70:K70), M(OT): None
+  N(total OT): formula==O70/8*M70, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L70*O70+N70, value=1600
+  R(net): formula==Q70-P70, value=1600
+
+=== Alimbog, Alquin (row 71) ===
+  Days detail: [None, None, None, 1, 1, 1, 1]
+  L(days): =SUM(E71:K71), M(OT): None
+  N(total OT): formula==O71/8*M71, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L71*O71+N71, value=1600
+  R(net): formula==Q71-P71, value=1600
+
+=== Igot, Marani (row 72) ===
+  Days detail: [None, None, None, 1, None, 1, 1]
+  L(days): =SUM(E72:K72), M(OT): None
+  N(total OT): formula==O72/8*M72, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L72*O72+N72, value=1200
+  R(net): formula==Q72-P72, value=1200
+
+=== Lagnas, Jovan (row 73) ===
+  Days detail: [None, None, None, 1, None, 1, 1]
+  L(days): =SUM(E73:K73), M(OT): None
+  N(total OT): formula==O73/8*M73, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L73*O73+N73, value=1200
+  R(net): formula==Q73-P73, value=1200
+
+=== Catuan, Ryan (row 74) ===
+  Days detail: [None, None, None, 2, 1, 1, 1]
+  L(days): 4, M(OT): 8
+  N(total OT): formula==O74/8*M74, value=400
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L74*O74+N74, value=2000
+  R(net): formula==Q74-P74, value=2000
+
+=== Tumantan, Roalndo (row 75) ===
+  Days detail: [None, None, None, 1, 1, 1, 1]
+  L(days): =SUM(E75:K75), M(OT): None
+  N(total OT): formula==O75/8*M75, value=0
+  O(daily rate): 400
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula==L75*O75+N75, value=1600
+  R(net): formula==Q75-P75, value=1600
+
+=== TOTAL (row 78) ===
+  Days detail: [None, None, None, None, None, None, None]
+  L(days): None, M(OT): None
+  N(total OT): formula=None, value=None
+  O(daily rate): None
+  P(bonus/ded): formula==SUM(P5:P77), value=1620
+  Q(total): formula==SUM(Q5:Q77), value=172875
+  R(net): formula==SUM(R5:R77), value=171255
+
+=== Prepared by : (row 81) ===
+  Days detail: [None, None, None, None, None, None, None]
+  L(days): None, M(OT): None
+  N(total OT): formula=None, value=None
+  O(daily rate): None
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula=None, value=None
+  R(net): formula=None, value=None
+
+===                  Aislyn Lintawahan (row 82) ===
+  Days detail: [None, None, None, None, None, None, None]
+  L(days): None, M(OT): None
+  N(total OT): formula=None, value=None
+  O(daily rate): None
+  P(bonus/ded): formula=None, value=None
+  Q(total): formula=None, value=None
+  R(net): formula=None, value=None
+
+
+=== UNIQUE Q (TOTAL) FORMULAS ===
+
+Formula: =L5*O5+N5+50
+  Workers (1): Bacol, Vivian
+
+Formula: =L6*O6+N6
+  Workers (1): Ylagan Robert
+
+Formula: =L9*O9+N9
+  Workers (1): Abaday Emelyn
+
+Formula: =L10*O10+N10
+  Workers (1): Abaday Ike Jun
+
+Formula: =L11*O11+N11
+  Workers (1): Absin Jimmy
+
+Formula: =L12*O12+N12
+  Workers (1): Abunda Bobby
+
+Formula: =L13*O13+N13
+  Workers (1): Abunda, Renjay
+
+Formula: =L14*O14+N14
+  Workers (1): Alimbog , Gabby
+
+Formula: =L15*O15+N15
+  Workers (1): Alimbog , jhon
+
+Formula: =L16*O16+N16
+  Workers (1): Alimbog Hilbert
+
+Formula: =L17*O17+N17
+  Workers (1): Alimbog, Livy
+
+Formula: =L18*O18+N18
+  Workers (1): Alimbog,marque
+
+Formula: =L19*O19+N19
+  Workers (1): Amoncio,Jendel
+
+Formula: =L20*O20+N20
+  Workers (1): Andaol Zerbi
+
+Formula: =L21*O21+N21
+  Workers (1): Angan, e
+
+Formula: =L22*O22+N22
+  Workers (1): Arnesx Sarinao
+
+Formula: =L23*O23+N23
+  Workers (1): Atlawan, jimboy
+
+Formula: =L24*O24+N24
+  Workers (1): Baculio Daren
+
+Formula: =L25*O25+N25
+  Workers (1): Baculio Rosito
+
+Formula: =L26*O26+N26
+  Workers (1): Balbuena Randy
+
+Formula: =L27*O27+N27
+  Workers (1): bayantong Edgar
+
+Formula: =L28*O28+N28
+  Workers (1): Bulak Marvin
+
+Formula: =L29*O29+N29
+  Workers (1): Bulak Melvin
+
+Formula: =L30*O30+N30
+  Workers (1): Bulak Norvin
+
+Formula: =L31*O31+N31
+  Workers (1): Bulak, Alvin
+
+Formula: =L32*O32+N32
+  Workers (1): Cabornay, Celio
+
+Formula: =L33*O33+N33
+  Workers (1): Camahay Diego
+
+Formula: =L34*O34+N34
+  Workers (1): Cartahan , Kevin
+
+Formula: =L35*O35+N35
+  Workers (1): Cartahan, boboy
+
+Formula: =L36*O36+N36
+  Workers (1): Conahan,Aaron
+
+Formula: =L37*O37+N37
+  Workers (1): Curbo Regie
+
+Formula: =L38*O38+N38
+  Workers (1): Dagalia Cruz Popoy
+
+Formula: =L39*O39+N39
+  Workers (1): Dagpong crist
+
+Formula: =L40*O40+N40
+  Workers (1): Datuin James
+
+Formula: =L41*O41+N41
+  Workers (1): Decaso Jclaid
+
+Formula: =L42*O42+N42
+  Workers (1): Espina Aida
+
+Formula: =L43*O43+N43
+  Workers (1): Felizarda,Lintacan
+
+Formula: =L44*O44+N44
+  Workers (1): Funa, Muela
+
+Formula: =L45*O45+N45
+  Workers (1): Gonhay Jemmuel
+
+Formula: =L46*O46+N46
+  Workers (1): Guilan MEnard
+
+Formula: =L47*O47+N47
+  Workers (1): Lan ayan Raul
+
+Formula: =L48*O48+N48
+  Workers (1): Lan-ayan Renemee
+
+Formula: =L49*O49+N49
+  Workers (1): Lastimosa Ricky
+
+Formula: =L50*O50+N50
+  Workers (1): Mahunyag, christ
+
+Formula: =L51*O51+N51
+  Workers (1): Marjunel Angan
+
+Formula: =L52*O52+N52
+  Workers (1): Pagayod Beebth
+
+Formula: =L53*O53+N53
+  Workers (1): Pagayon jason
+
+Formula: =L54*O54+N54
+  Workers (1): Pagayon Joanrd
+
+Formula: =L55*O55+N55
+  Workers (1): Renel Angan
+
+Formula: =L56*O56+N56
+  Workers (1): Sagansan Jerry
+
+Formula: =L57*O57+N57
+  Workers (1): sagansan renie
+
+Formula: =L58*O58+N58
+  Workers (1): Sagansan, Dexter
+
+Formula: =L59*O59+N59
+  Workers (1): Salait Ariel
+
+Formula: =L60*O60+N60
+  Workers (1): Sandalan jevin
+
+Formula: =L61*O61+N61
+  Workers (1): Sumayan Roland
+
+Formula: =L62*O62+N62
+  Workers (1): ubanan Enel
+
+Formula: =L63*O63+N63
+  Workers (1): Yake jordan
+
+Formula: =L64*O64+N64
+  Workers (1): Yake rex
+
+Formula: =L65*O65+N65
+  Workers (1): Yake rodonio
+
+Formula: =L66*O66+N66
+  Workers (1): Yanuhon JOvil
+
+Formula: =L67*O67+N67
+  Workers (1): Yunson Alfred
+
+Formula: =L68*O68+N68
+  Workers (1): Yunson niper
+
+Formula: =L69*O69+N69
+  Workers (1): Alimbog,Rolly
+
+Formula: =L70*O70+N70
+  Workers (1): Francisco, Mark
+
+Formula: =L71*O71+N71
+  Workers (1): Alimbog, Alquin
+
+Formula: =L72*O72+N72
+  Workers (1): Igot, Marani
+
+Formula: =L73*O73+N73
+  Workers (1): Lagnas, Jovan
+
+Formula: =L74*O74+N74
+  Workers (1): Catuan, Ryan
+
+Formula: =L75*O75+N75
+  Workers (1): Tumantan, Roalndo
+
+Formula: =SUM(Q5:Q77)
+  Workers (1): TOTAL
+
+Formula: None
+  Workers (2): Prepared by :,                  Aislyn Lintawahan
+
+
+=== UNIQUE P (BONUS/DEDUCTION) FORMULAS ===
+
+P value/formula: 560
+  Workers (1): Bacol, Vivian
+
+P value/formula: =500+560
+  Workers (1): Ylagan Robert
+
+P value/formula: None
+  Workers (69): Abaday Emelyn, Abaday Ike Jun, Absin Jimmy, Abunda Bobby, Abunda, Renjay...
+
+P value/formula: =SUM(P5:P77)
+  Workers (1): TOTAL
