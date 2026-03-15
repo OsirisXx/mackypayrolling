@@ -523,13 +523,8 @@ export const PayrollPage: React.FC = () => {
     const overtimePay = otHours * hourlyRate;
     const basePay = days * dailyRate;
     
-    // Special case for Bacol, Vivian - add fixed 50 bonus to subtotal
-    const workerName = item.worker.full_name.toLowerCase();
-    const isBackol = workerName.includes('bacol') && workerName.includes('vivian');
-    const extraBonus = isBackol ? 50 : 0;
-    
-    // Subtotal = Base Pay + OT Pay + Incentive (before SSS and deductions)
-    return basePay + overtimePay + edited.bonus + extraBonus;
+    // Subtotal = Base Pay + OT Pay + Bonus (before SSS and deductions)
+    return basePay + overtimePay + edited.bonus;
   };
 
   // Calculate total (after SSS/deductions) for a worker
