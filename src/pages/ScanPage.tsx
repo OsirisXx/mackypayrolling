@@ -164,6 +164,25 @@ export const ScanPage: React.FC = () => {
     fetchTodayAttendance();
   };
 
+  const handleOTClockOut = async () => {
+    if (!scannedWorker) return;
+    
+    const success = await otClockOut(scannedWorker.id);
+    if (success) {
+      setMessage({ type: 'success', text: `${scannedWorker.full_name} OT clocked out!` });
+    } else {
+      const storeError = useAttendanceStore.getState().error;
+      setMessage({ type: 'error', text: storeError || `Failed to clock out OT for ${scannedWorker.full_name}.` });
+    }
+    setShowQuotaModal(false);
+    setScannedWorker(null);
+    setActiveAttendance(null);
+    fetchTodayAttendance();
+  };
+
+  // Check if worker is currently in OT session
+  const isWorkerInOT = activeAttendance?.ot_clock_in && !activeAttendance?.ot_clock_out;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -272,72 +291,105 @@ export const ScanPage: React.FC = () => {
           setScannedWorker(null);
           setActiveAttendance(null);
         }}
-        title="Clock Out Options"
+        title={isWorkerInOT ? "OT Clock Out" : "Clock Out Options"}
         size="md"
       >
         {scannedWorker && activeAttendance && (
           <div className="space-y-6">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900">{scannedWorker.full_name}</h3>
+            <div className={`rounded-lg p-4 ${isWorkerInOT ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50'}`}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">{scannedWorker.full_name}</h3>
+                {isWorkerInOT && (
+                  <Badge variant="warning">
+                    <Zap className="w-3 h-3 mr-1" />
+                    In OT
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm text-gray-500">ID: {scannedWorker.employee_id}</p>
               <p className="text-sm text-gray-500">
                 Clocked in at: {formatTime(activeAttendance.clock_in)}
               </p>
+              {isWorkerInOT && activeAttendance.ot_clock_in && (
+                <p className="text-sm text-orange-600 font-medium">
+                  OT started at: {formatTime(activeAttendance.ot_clock_in)}
+                </p>
+              )}
               <p className="text-sm text-gray-500">
                 Daily Rate: {formatCurrency(scannedWorker.daily_rate)}
               </p>
             </div>
 
-            <div className="space-y-4">
-              <Button
-                variant="primary"
-                className="w-full"
-                size="lg"
-                onClick={handleClockOut}
-                isLoading={isLoading}
-              >
-                <Clock className="w-5 h-5 mr-2" />
-                Regular Clock Out
-              </Button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-gray-700">
-                  Mark as Quota Completed (Early finish)
+            {isWorkerInOT ? (
+              /* OT Clock Out UI */
+              <div className="space-y-4">
+                <p className="text-sm text-orange-700 bg-orange-50 p-3 rounded-lg">
+                  This worker is currently in an <strong>overtime session</strong>. Click below to end their OT.
                 </p>
-                <Input
-                  label="Bags Completed"
-                  type="number"
-                  value={bagsCompleted}
-                  onChange={(e) => setBagsCompleted(e.target.value)}
-                  placeholder="Enter number of bags"
-                />
-                <Input
-                  label="Notes (Optional)"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any additional notes"
-                />
                 <Button
-                  variant="secondary"
+                  variant="danger"
                   className="w-full"
-                  onClick={handleQuotaComplete}
-                  disabled={!bagsCompleted}
+                  size="lg"
+                  onClick={handleOTClockOut}
                   isLoading={isLoading}
                 >
-                  <Package className="w-5 h-5 mr-2" />
-                  Complete by Quota
+                  <Zap className="w-5 h-5 mr-2" />
+                  End Overtime
                 </Button>
               </div>
-            </div>
+            ) : (
+              /* Regular Clock Out UI */
+              <div className="space-y-4">
+                <Button
+                  variant="primary"
+                  className="w-full"
+                  size="lg"
+                  onClick={handleClockOut}
+                  isLoading={isLoading}
+                >
+                  <Clock className="w-5 h-5 mr-2" />
+                  Regular Clock Out
+                </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-gray-700">
+                    Mark as Quota Completed (Early finish)
+                  </p>
+                  <Input
+                    label="Bags Completed"
+                    type="number"
+                    value={bagsCompleted}
+                    onChange={(e) => setBagsCompleted(e.target.value)}
+                    placeholder="Enter number of bags"
+                  />
+                  <Input
+                    label="Notes (Optional)"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Any additional notes"
+                  />
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    onClick={handleQuotaComplete}
+                    disabled={!bagsCompleted}
+                    isLoading={isLoading}
+                  >
+                    <Package className="w-5 h-5 mr-2" />
+                    Complete by Quota
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>
