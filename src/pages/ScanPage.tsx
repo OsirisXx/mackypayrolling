@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { QRScanner } from '../components/qr/QRScanner';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
@@ -52,6 +52,28 @@ export const ScanPage: React.FC = () => {
   const lastScanRef = React.useRef<{ qr: string; time: number } | null>(null);
   
   const isManager = user?.role === 'manager' || user?.role === 'admin';
+  
+  // Live time counter - updates every minute
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate duration from clock_in time
+  const getWorkDuration = useCallback((clockIn: string) => {
+    const start = new Date(clockIn);
+    const now = new Date();
+    const diffMs = now.getTime() - start.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  }, []);
 
   useEffect(() => {
     fetchWorkers();
@@ -271,6 +293,10 @@ export const ScanPage: React.FC = () => {
                             OT
                           </Badge>
                         )}
+                        <Badge variant="success">
+                          <Timer className="w-3 h-3 mr-1" />
+                          {getWorkDuration(record.clock_in)}
+                        </Badge>
                         <Badge variant="info">
                           <Clock className="w-3 h-3 mr-1" />
                           Working
@@ -279,6 +305,51 @@ export const ScanPage: React.FC = () => {
                     </div>
                   ))}
               </div>
+            )}
+            
+            {/* Clocked Out Section */}
+            {todayRecords.filter((r) => r.status === 'clocked_out' || r.status === 'completed_quota').length > 0 && (
+              <>
+                <div className="bg-gray-100 px-4 py-2 border-t border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-600">Clocked Out Today</h3>
+                </div>
+                <div className="divide-y divide-gray-200 max-h-48 overflow-y-auto">
+                  {todayRecords
+                    .filter((r) => r.status === 'clocked_out' || r.status === 'completed_quota')
+                    .map((record) => (
+                      <div
+                        key={record.id}
+                        className="p-3 flex items-center justify-between hover:bg-gray-50 bg-gray-50"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-700 text-sm">
+                            {record.worker?.full_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatTime(record.clock_in)} - {record.clock_out ? formatTime(record.clock_out) : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {record.hours_worked && (
+                            <Badge variant="default">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {record.hours_worked.toFixed(1)}h
+                            </Badge>
+                          )}
+                          {record.overtime_hours && record.overtime_hours > 0 && (
+                            <Badge variant="warning">
+                              <Zap className="w-3 h-3 mr-1" />
+                              +{record.overtime_hours.toFixed(1)}h OT
+                            </Badge>
+                          )}
+                          <Badge variant={record.status === 'completed_quota' ? 'success' : 'default'}>
+                            {record.status === 'completed_quota' ? 'Quota' : 'Out'}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
