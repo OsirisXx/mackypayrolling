@@ -10,7 +10,7 @@ import { useWorkerStore } from '../stores/workerStore';
 import { useAttendanceStore } from '../stores/attendanceStore';
 import { useAuthStore } from '../stores/authStore';
 import { formatTime, formatCurrency } from '../lib/utils';
-import { CheckCircle, Clock, Package, AlertCircle, Timer } from 'lucide-react';
+import { CheckCircle, Clock, Package, AlertCircle, Timer, Zap } from 'lucide-react';
 import type { Worker, AttendanceWithWorker } from '../types/database';
 
 export const ScanPage: React.FC = () => {
@@ -41,6 +41,15 @@ export const ScanPage: React.FC = () => {
   
   // OT Mode state
   const [isOTMode, setIsOTMode] = useState(false);
+  const isOTModeRef = React.useRef(false);
+  
+  // Keep ref in sync with state
+  React.useEffect(() => {
+    isOTModeRef.current = isOTMode;
+  }, [isOTMode]);
+  
+  // Prevent duplicate scans - track last scanned QR and time
+  const lastScanRef = React.useRef<{ qr: string; time: number } | null>(null);
   
   const isManager = user?.role === 'manager' || user?.role === 'admin';
 
@@ -51,6 +60,15 @@ export const ScanPage: React.FC = () => {
 
   const handleScan = async (qrCode: string) => {
     if (isProcessing) return;
+    
+    // Prevent duplicate scans within 3 seconds
+    const now = Date.now();
+    if (lastScanRef.current && 
+        lastScanRef.current.qr === qrCode && 
+        now - lastScanRef.current.time < 3000) {
+      return;
+    }
+    lastScanRef.current = { qr: qrCode, time: now };
     
     setIsProcessing(true);
     clearError();
@@ -64,8 +82,9 @@ export const ScanPage: React.FC = () => {
       return;
     }
 
-    // If in OT mode, handle OT clock in/out
-    if (isOTMode) {
+    // If in OT mode, handle OT clock in/out (use ref to avoid stale closure)
+    const currentOTMode = isOTModeRef.current;
+    if (currentOTMode) {
       // Check if worker has active OT session (ot_clock_in but no ot_clock_out)
       const todayRecord = todayRecords.find(
         (r) => r.worker_id === worker.id && (r.status === 'clocked_in' || r.status === 'clocked_out')
@@ -92,6 +111,10 @@ export const ScanPage: React.FC = () => {
         if (success) {
           setMessage({ type: 'success', text: `${worker.full_name} OT clocked in!` });
           fetchTodayAttendance();
+        } else {
+          // Get the error from the store and show it
+          const storeError = useAttendanceStore.getState().error;
+          setMessage({ type: 'error', text: storeError || `Failed to clock in OT for ${worker.full_name}.` });
         }
       }
 
@@ -222,10 +245,18 @@ export const ScanPage: React.FC = () => {
                           Clocked in at {formatTime(record.clock_in)}
                         </p>
                       </div>
-                      <Badge variant="info">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Working
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {record.ot_clock_in && !record.ot_clock_out && (
+                          <Badge variant="warning">
+                            <Zap className="w-3 h-3 mr-1" />
+                            OT
+                          </Badge>
+                        )}
+                        <Badge variant="info">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Working
+                        </Badge>
+                      </div>
                     </div>
                   ))}
               </div>

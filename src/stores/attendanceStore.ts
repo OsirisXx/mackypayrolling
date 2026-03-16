@@ -225,20 +225,34 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
         throw new Error('Worker is already clocked in for overtime.');
       }
 
-      const { data, error } = await supabase
+      // First, update the record
+      // @ts-ignore - Supabase type inference issue
+      const { error: updateError } = await supabase
         .from('attendance')
         .update({
           ot_clock_in: new Date().toISOString(),
-          ot_clock_out: null,
         })
-        .eq('id', record.id)
+        .eq('id', record.id);
+
+      if (updateError) {
+        console.error('OT Clock In update error:', updateError);
+        throw new Error(`Failed to start overtime: ${updateError.message}`);
+      }
+
+      // Then fetch the updated record with worker data
+      const { data, error: fetchError } = await supabase
+        .from('attendance')
         .select(`
           *,
           worker:workers(*)
         `)
+        .eq('id', record.id)
         .single();
 
-      if (error) throw error;
+      if (fetchError) {
+        console.error('OT Clock In fetch error:', fetchError);
+        throw new Error(`Failed to fetch updated record: ${fetchError.message}`);
+      }
 
       set((state) => ({
         todayRecords: state.todayRecords.map((r) =>
@@ -250,6 +264,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'An error occurred';
+      console.error('OT Clock In error:', message);
       set({ error: message, isLoading: false });
       return false;
     }
