@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { auditLog } from '../lib/auditLog';
-import { Download, Printer, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
+import { Download, Printer, ChevronLeft, ChevronRight, MessageSquare, FileText } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import type { Worker } from '../types/database';
@@ -78,6 +79,9 @@ export const PayrollPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [editedValues, setEditedValues] = useState<Record<string, { days: number | null; ot: number | null; dailyRate: number | null; bonus: number; sss: number; deduction: number; deductionRemarks: string }>>({});
   const [remarksModal, setRemarksModal] = useState<{ isOpen: boolean; workerName: string; remarks: string; workerId: string }>({ isOpen: false, workerName: '', remarks: '', workerId: '' });
+  const [periodSelectionModal, setPeriodSelectionModal] = useState<{ isOpen: boolean; workerId: string; workerName: string }>({ isOpen: false, workerId: '', workerName: '' });
+  const [availablePeriods, setAvailablePeriods] = useState<Array<{ start: Date; end: Date; label: string }>>([]);
+  const [selectedPeriods, setSelectedPeriods] = useState<Set<string>>(new Set());
   
   // Resizable columns state (pixel widths)
   const containerRef = useRef<HTMLDivElement>(null);
@@ -406,13 +410,57 @@ export const PayrollPage: React.FC = () => {
     printWindow.print();
   };
 
-  const handlePrintWorker = async (workerId: string) => {
+  const openPeriodSelection = async (workerId: string, workerName: string) => {
+    // Fetch all available periods for this worker
+    try {
+      const { data: adjustments } = await supabase
+        .from('payroll_adjustments')
+        .select('period_start, period_end')
+        .eq('worker_id', workerId)
+        .order('period_start', { ascending: false });
+      
+      const periods = (adjustments || []).map(adj => ({
+        start: new Date(adj.period_start),
+        end: new Date(adj.period_end),
+        label: `${format(new Date(adj.period_start), 'MMM dd')} - ${format(new Date(adj.period_end), 'dd, yyyy')}`
+      }));
+      
+      setAvailablePeriods(periods);
+      setSelectedPeriods(new Set(periods.slice(0, 4).map(p => p.label))); // Select last 4 weeks by default
+      setPeriodSelectionModal({ isOpen: true, workerId, workerName });
+    } catch (error) {
+      console.error('Error fetching periods:', error);
+    }
+  };
+
+  const togglePeriodSelection = (periodLabel: string) => {
+    setSelectedPeriods(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(periodLabel)) {
+        newSet.delete(periodLabel);
+      } else {
+        newSet.add(periodLabel);
+      }
+      return newSet;
+    });
+  };
+
+  const handlePrintWorkerWithPeriods = async () => {
+    const { workerId } = periodSelectionModal;
+    setPeriodSelectionModal({ isOpen: false, workerId: '', workerName: '' });
+    
     try {
       // Fetch worker details
       const worker = payrollData.find(p => p.worker.id === workerId)?.worker;
       if (!worker) return;
 
-      // Fetch all attendance history for this worker
+      // Fetch all attendance history for this worker (only for selected periods)
+      const selectedPeriodObjs = availablePeriods.filter(p => selectedPeriods.has(p.label));
+      if (selectedPeriodObjs.length === 0) {
+        alert('Please select at least one period to print');
+        return;
+      }
+      
       const { data: allAttendance, error } = await supabase
         .from('attendance')
         .select('*')
@@ -524,7 +572,9 @@ export const PayrollPage: React.FC = () => {
       printWindow.document.write('</tr></thead><tbody>');
       
       let grandTotal = 0;
-      Object.entries(weeklyData).forEach(([period, data]) => {
+      Object.entries(weeklyData)
+        .filter(([period]) => selectedPeriods.has(period)) // Only include selected periods
+        .forEach(([period, data]) => {
         // Get adjustments for this period if they exist
         const adj = adjustmentMap[period];
         
@@ -821,8 +871,19 @@ export const PayrollPage: React.FC = () => {
                   
                   return (
                     <tr key={item.worker.id} className="hover:bg-gray-50">
-                      <td className="px-2 py-1.5 text-sm text-gray-900 border-r border-gray-200 truncate">
-                        {item.worker.full_name}
+                      <td className="px-2 py-1.5 text-sm text-gray-900 border-r border-gray-200">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate">{item.worker.full_name}</span>
+                          {isAdmin && (
+                            <button
+                              onClick={() => openPeriodSelection(item.worker.id, item.worker.full_name)}
+                              className="text-blue-600 hover:text-blue-800 flex-shrink-0"
+                              title="Print payroll history"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-1 py-1.5 text-sm text-center text-gray-900 border-r border-gray-200">
                         {isAdmin ? (
@@ -934,12 +995,7 @@ export const PayrollPage: React.FC = () => {
                         ________
                       </td>
                       <td className="px-1 py-1.5 text-sm text-center print:hidden">
-                        <button
-                          onClick={() => handlePrintWorker(item.worker.id)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          Print
-                        </button>
+                        {/* Removed - Print button moved to name column */}
                       </td>
                     </tr>
                   );
@@ -1041,6 +1097,63 @@ export const PayrollPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Period Selection Modal */}
+      <Modal
+        isOpen={periodSelectionModal.isOpen}
+        onClose={() => setPeriodSelectionModal({ isOpen: false, workerId: '', workerName: '' })}
+        title={`Select Periods for ${periodSelectionModal.workerName}`}
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Select the weeks you want to include in the payroll history printout:
+          </p>
+          
+          <div className="max-h-96 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-4">
+            {availablePeriods.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-4">No payroll periods found for this worker</p>
+            ) : (
+              availablePeriods.map((period) => (
+                <label
+                  key={period.label}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer border border-gray-200"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedPeriods.has(period.label)}
+                    onChange={() => togglePeriodSelection(period.label)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">{period.label}</span>
+                </label>
+              ))
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <div className="text-sm text-gray-600">
+              {selectedPeriods.size} period{selectedPeriods.size !== 1 ? 's' : ''} selected
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setPeriodSelectionModal({ isOpen: false, workerId: '', workerName: '' })}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handlePrintWorkerWithPeriods}
+                disabled={selectedPeriods.size === 0}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print Selected
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
