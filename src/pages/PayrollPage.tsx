@@ -423,58 +423,31 @@ export const PayrollPage: React.FC = () => {
   };
 
   const openPeriodSelection = async (workerId: string, workerName: string) => {
-    // Always fetch ALL attendance data to show all possible periods
+    // Use ONLY payroll_adjustments - these are the exact periods from main payroll page
     try {
-      const { data: attendance } = await supabase
-        .from('attendance')
-        .select('clock_in')
+      const { data: adjustments } = await supabase
+        .from('payroll_adjustments')
+        .select('period_start, period_end')
         .eq('worker_id', workerId)
-        .in('status', ['clocked_out', 'completed_quota'])
-        .order('clock_in', { ascending: false });
+        .order('period_start', { ascending: false });
       
-      if (!attendance || attendance.length === 0) {
+      if (!adjustments || adjustments.length === 0) {
         setAvailablePeriods([]);
         setSelectedPeriods(new Set());
         setPeriodSelectionModal({ isOpen: true, workerId, workerName });
         return;
       }
       
-      // Group by unique weeks (Thu-Wed periods) from attendance data
-      const periodMap = new Map<string, { start: Date; end: Date }>();
-      attendance.forEach(att => {
-        const date = new Date(att.clock_in);
-        // Find the Thursday that starts the week containing this date
-        const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-        let daysToThursday;
-        if (dayOfWeek === 0) { // Sunday - go back 3 days to previous Thursday
-          daysToThursday = 3;
-        } else if (dayOfWeek < 4) { // Mon-Wed - go back to previous Thursday
-          daysToThursday = dayOfWeek + 3;
-        } else { // Thu-Sat - go back to this week's Thursday
-          daysToThursday = dayOfWeek - 4;
-        }
-        
-        const thursday = new Date(date);
-        thursday.setDate(date.getDate() - daysToThursday);
-        thursday.setHours(0, 0, 0, 0);
-        
-        const wednesday = new Date(thursday);
-        wednesday.setDate(thursday.getDate() + 6);
-        
-        const periodKey = `${format(thursday, 'MMM dd')} - ${format(wednesday, 'dd, yyyy')}`;
-        
-        if (!periodMap.has(periodKey)) {
-          periodMap.set(periodKey, { start: thursday, end: wednesday });
-        }
+      // Convert adjustments to period objects with exact same format as main payroll
+      const periods = adjustments.map(adj => {
+        const start = new Date(adj.period_start);
+        const end = new Date(adj.period_end);
+        const label = `${format(start, 'MMM dd')} - ${format(end, 'dd, yyyy')}`;
+        return { label, start, end };
       });
       
-      // Convert to array and sort by date (most recent first)
-      const periods = Array.from(periodMap.entries())
-        .map(([label, { start, end }]) => ({ label, start, end }))
-        .sort((a, b) => b.start.getTime() - a.start.getTime());
-      
       setAvailablePeriods(periods);
-      setSelectedPeriods(new Set(periods.slice(0, 4).map(p => p.label))); // Select last 4 weeks by default
+      setSelectedPeriods(new Set()); // Start with NO periods selected
       setPeriodSelectionModal({ isOpen: true, workerId, workerName });
     } catch (error) {
       console.error('Error fetching periods:', error);
