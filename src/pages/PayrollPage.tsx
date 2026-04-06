@@ -513,13 +513,14 @@ export const PayrollPage: React.FC = () => {
       const worker = payrollData.find(p => p.worker.id === workerId)?.worker;
       if (!worker) return;
 
-      // Fetch all attendance history for this worker (only for selected periods)
+      // Get the exact selected period objects (with their start/end dates)
       const selectedPeriodObjs = availablePeriods.filter(p => selectedPeriods.has(p.label));
       if (selectedPeriodObjs.length === 0) {
         alert('Please select at least one period to print');
         return;
       }
       
+      // Fetch all attendance history for this worker
       const { data: allAttendance, error } = await supabase
         .from('attendance')
         .select('*')
@@ -535,7 +536,7 @@ export const PayrollPage: React.FC = () => {
         .select('*')
         .eq('worker_id', workerId);
 
-      // Create a map of adjustments by period
+      // Create a map of adjustments by period label
       const adjustmentMap: Record<string, {
         days_override: number | null;
         ot_override: number | null;
@@ -559,45 +560,31 @@ export const PayrollPage: React.FC = () => {
         };
       });
 
-      // Group attendance by Thursday-Wednesday weeks (matching main payroll page logic)
+      // Calculate data for each selected period using their exact date ranges
       const weeklyData: Record<string, { totalHours: number; otHours: number; periodStart: Date; periodEnd: Date }> = {};
       
-      (allAttendance || []).forEach(att => {
-        const date = new Date(att.clock_in);
+      selectedPeriodObjs.forEach(period => {
+        const periodStart = new Date(period.start);
+        const periodEnd = new Date(period.end);
+        periodEnd.setHours(23, 59, 59, 999); // Include full end day
         
-        // Find the Thursday of the week containing this date
-        const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 4=Thu
-        let daysToThursday;
-        if (dayOfWeek === 0) { // Sunday
-          daysToThursday = 3; // Go back to previous Thursday
-        } else if (dayOfWeek < 4) { // Mon-Wed
-          daysToThursday = dayOfWeek + 3; // Go back to previous Thursday
-        } else { // Thu-Sat
-          daysToThursday = dayOfWeek - 4; // Go back to this Thursday
-        }
+        // Filter attendance for this specific period
+        const periodAttendance = (allAttendance || []).filter(att => {
+          const attDate = new Date(att.clock_in);
+          return attDate >= periodStart && attDate <= periodEnd;
+        });
         
-        const thursday = new Date(date);
-        thursday.setDate(date.getDate() - daysToThursday);
-        thursday.setHours(0, 0, 0, 0);
+        // Calculate totals for this period
+        const totalHours = periodAttendance.reduce((sum, att) => sum + (att.hours_worked || 0), 0);
+        const otHours = periodAttendance.reduce((sum, att) => sum + (att.overtime_hours || 0), 0);
         
-        const wednesday = new Date(thursday);
-        wednesday.setDate(thursday.getDate() + 6);
-        
-        const weekKey = `${format(thursday, 'MMM dd')} - ${format(wednesday, 'dd, yyyy')}`;
-        
-        if (!weeklyData[weekKey]) {
-          weeklyData[weekKey] = { totalHours: 0, otHours: 0, periodStart: thursday, periodEnd: wednesday };
-        }
-        
-        // Sum hours worked and overtime hours
-        weeklyData[weekKey].totalHours += att.hours_worked || 0;
-        weeklyData[weekKey].otHours += att.overtime_hours || 0;
+        weeklyData[period.label] = {
+          totalHours,
+          otHours,
+          periodStart,
+          periodEnd
+        };
       });
-      
-      // Debug: Log what periods we have vs what was selected
-      console.log('Available periods in weeklyData:', Object.keys(weeklyData));
-      console.log('Selected periods:', Array.from(selectedPeriods));
-      console.log('Matching periods:', Object.keys(weeklyData).filter(p => selectedPeriods.has(p)));
 
       // Create print window
       const printWindow = window.open('', '', 'height=800,width=1000');
