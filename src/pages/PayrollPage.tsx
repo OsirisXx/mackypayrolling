@@ -325,16 +325,16 @@ export const PayrollPage: React.FC = () => {
     printWindow.document.write('.total-row { background-color: #dbeafe !important; font-weight: bold; font-size: 11px; }');
     printWindow.document.write('.text-right { text-align: right; padding-right: 6px; }');
     printWindow.document.write('.text-left { text-align: left; padding-left: 6px; white-space: normal; }');
-    printWindow.document.write('th:nth-child(1), td:nth-child(1) { min-width: 120px; max-width: 180px; white-space: normal; }');
-    printWindow.document.write('th:nth-child(2), td:nth-child(2) { width: 40px; }');
-    printWindow.document.write('th:nth-child(3), td:nth-child(3) { width: 35px; }');
-    printWindow.document.write('th:nth-child(4), td:nth-child(4) { width: 45px; }');
-    printWindow.document.write('th:nth-child(5), td:nth-child(5) { width: 55px; }');
-    printWindow.document.write('th:nth-child(6), td:nth-child(6) { width: 40px; }');
-    printWindow.document.write('th:nth-child(7), td:nth-child(7) { width: 40px; }');
-    printWindow.document.write('th:nth-child(8), td:nth-child(8) { width: 90px; }');
-    printWindow.document.write('th:nth-child(9), td:nth-child(9) { width: 90px; }');
-    printWindow.document.write('th:nth-child(10), td:nth-child(10) { width: 80px; }');
+    printWindow.document.write('th:nth-child(1), td:nth-child(1) { width: 100px; max-width: 100px; white-space: normal; overflow: hidden; text-overflow: ellipsis; }');
+    printWindow.document.write('th:nth-child(2), td:nth-child(2) { width: 45px; }');
+    printWindow.document.write('th:nth-child(3), td:nth-child(3) { width: 40px; }');
+    printWindow.document.write('th:nth-child(4), td:nth-child(4) { width: 50px; }');
+    printWindow.document.write('th:nth-child(5), td:nth-child(5) { width: 60px; }');
+    printWindow.document.write('th:nth-child(6), td:nth-child(6) { width: 45px; }');
+    printWindow.document.write('th:nth-child(7), td:nth-child(7) { width: 45px; }');
+    printWindow.document.write('th:nth-child(8), td:nth-child(8) { width: 95px; }');
+    printWindow.document.write('th:nth-child(9), td:nth-child(9) { width: 95px; }');
+    printWindow.document.write('th:nth-child(10), td:nth-child(10) { width: 85px; }');
     printWindow.document.write('@media print { body { padding: 5px; } table { page-break-inside: auto; } tr { page-break-inside: avoid; page-break-after: auto; } }');
     printWindow.document.write('</style></head><body>');
     
