@@ -422,19 +422,48 @@ export const PayrollPage: React.FC = () => {
   };
 
   const openPeriodSelection = async (workerId: string, workerName: string) => {
-    // Fetch all available periods for this worker
+    // Fetch all attendance records for this worker to determine available periods
     try {
-      const { data: adjustments } = await supabase
-        .from('payroll_adjustments')
-        .select('period_start, period_end')
+      const { data: attendance } = await supabase
+        .from('attendance')
+        .select('clock_in')
         .eq('worker_id', workerId)
-        .order('period_start', { ascending: false });
+        .in('status', ['clocked_out', 'completed_quota'])
+        .order('clock_in', { ascending: false });
       
-      const periods = (adjustments || []).map(adj => ({
-        start: new Date(adj.period_start),
-        end: new Date(adj.period_end),
-        label: `${format(new Date(adj.period_start), 'MMM dd')} - ${format(new Date(adj.period_end), 'dd, yyyy')}`
-      }));
+      if (!attendance || attendance.length === 0) {
+        setAvailablePeriods([]);
+        setSelectedPeriods(new Set());
+        setPeriodSelectionModal({ isOpen: true, workerId, workerName });
+        return;
+      }
+      
+      // Group attendance into 7-day periods starting from Feb 6, 2026
+      const baseDate = new Date('2026-02-06');
+      const periodMap = new Map<string, { start: Date; end: Date }>();
+      
+      attendance.forEach(att => {
+        const date = new Date(att.clock_in);
+        const daysSinceBase = Math.floor((date.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
+        const periodIndex = Math.floor(daysSinceBase / 7);
+        
+        const periodStart = new Date(baseDate);
+        periodStart.setDate(baseDate.getDate() + (periodIndex * 7));
+        
+        const periodEnd = new Date(periodStart);
+        periodEnd.setDate(periodStart.getDate() + 6);
+        
+        const periodKey = `${format(periodStart, 'MMM dd')} - ${format(periodEnd, 'dd, yyyy')}`;
+        
+        if (!periodMap.has(periodKey)) {
+          periodMap.set(periodKey, { start: periodStart, end: periodEnd });
+        }
+      });
+      
+      // Convert to array and sort by date (most recent first)
+      const periods = Array.from(periodMap.entries())
+        .map(([label, { start, end }]) => ({ label, start, end }))
+        .sort((a, b) => b.start.getTime() - a.start.getTime());
       
       setAvailablePeriods(periods);
       setSelectedPeriods(new Set(periods.slice(0, 4).map(p => p.label))); // Select last 4 weeks by default
