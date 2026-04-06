@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
-import { Calendar, Download, Edit2 } from 'lucide-react';
+import { Calendar, Download, Edit2, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { useAttendanceStore } from '../stores/attendanceStore';
 import { useAuthStore } from '../stores/authStore';
@@ -28,8 +29,19 @@ export const AttendancePage: React.FC = () => {
     bagsCompleted: ''
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isAdmin = user?.role === 'admin';
+  
+  // Filter attendance records based on search query
+  const filteredRecords = attendanceRecords.filter((record) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      record.worker?.full_name?.toLowerCase().includes(query) ||
+      record.worker?.employee_id?.toLowerCase().includes(query)
+    );
+  });
 
   useEffect(() => {
     fetchAttendance(dateRange.start, dateRange.end);
@@ -117,7 +129,7 @@ export const AttendancePage: React.FC = () => {
 
   const exportToCSV = () => {
     const headers = ['Date', 'Worker', 'Employee ID', 'Clock In', 'Clock Out', 'Hours', 'OT Hours', 'Status', 'Bags'];
-    const rows = attendanceRecords.map((r) => [
+    const rows = filteredRecords.map((r) => [
       formatDate(r.clock_in),
       r.worker?.full_name || '',
       r.worker?.employee_id || '',
@@ -153,20 +165,32 @@ export const AttendancePage: React.FC = () => {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Calendar className="w-5 h-5 text-gray-400" />
-              <span className="font-medium">
-                {format(dateRange.start, 'MMM d')} - {format(dateRange.end, 'MMM d, yyyy')}
-              </span>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Calendar className="w-5 h-5 text-gray-400" />
+                <span className="font-medium">
+                  {format(dateRange.start, 'MMM d')} - {format(dateRange.end, 'MMM d, yyyy')}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handlePreviousWeek}>
+                  Previous Week
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleCurrentWeek}>
+                  Current Week
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handlePreviousWeek}>
-                Previous Week
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleCurrentWeek}>
-                Current Week
-              </Button>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by employee name or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
             </div>
           </div>
         </CardHeader>
@@ -175,9 +199,9 @@ export const AttendancePage: React.FC = () => {
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
             </div>
-          ) : attendanceRecords.length === 0 ? (
+          ) : filteredRecords.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
-              No attendance records for this period
+              {searchQuery ? `No attendance records found for "${searchQuery}"` : 'No attendance records for this period'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -216,7 +240,7 @@ export const AttendancePage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {attendanceRecords.map((record) => (
+                  {filteredRecords.map((record) => (
                     <tr key={record.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(record.clock_in)}
