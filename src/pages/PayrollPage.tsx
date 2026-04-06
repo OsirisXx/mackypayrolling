@@ -423,70 +423,49 @@ export const PayrollPage: React.FC = () => {
   };
 
   const openPeriodSelection = async (workerId: string, workerName: string) => {
-    // Fetch all payroll_adjustments for this worker to get actual payroll periods
+    // Fetch ALL attendance records for this worker to generate all possible periods
     try {
-      const { data: adjustments } = await supabase
-        .from('payroll_adjustments')
-        .select('period_start, period_end')
+      const { data: attendance } = await supabase
+        .from('attendance')
+        .select('clock_in')
         .eq('worker_id', workerId)
-        .order('period_start', { ascending: false });
+        .in('status', ['clocked_out', 'completed_quota'])
+        .order('clock_in', { ascending: false });
       
-      if (!adjustments || adjustments.length === 0) {
-        // If no adjustments, try to get periods from attendance grouped by weeks
-        const { data: attendance } = await supabase
-          .from('attendance')
-          .select('clock_in')
-          .eq('worker_id', workerId)
-          .in('status', ['clocked_out', 'completed_quota'])
-          .order('clock_in', { ascending: false });
-        
-        if (!attendance || attendance.length === 0) {
-          setAvailablePeriods([]);
-          setSelectedPeriods(new Set());
-          setPeriodSelectionModal({ isOpen: true, workerId, workerName });
-          return;
-        }
-        
-        // Group by unique weeks (Thu-Wed periods)
-        const periodMap = new Map<string, { start: Date; end: Date }>();
-        attendance.forEach(att => {
-          const date = new Date(att.clock_in);
-          // Find the Thursday of this week or previous week
-          const dayOfWeek = date.getDay(); // 0=Sun, 4=Thu
-          const daysToThursday = dayOfWeek >= 4 ? dayOfWeek - 4 : dayOfWeek + 3;
-          const thursday = new Date(date);
-          thursday.setDate(date.getDate() - daysToThursday);
-          thursday.setHours(0, 0, 0, 0);
-          
-          const wednesday = new Date(thursday);
-          wednesday.setDate(thursday.getDate() + 6);
-          
-          const periodKey = `${format(thursday, 'MMM dd')} - ${format(wednesday, 'dd, yyyy')}`;
-          
-          if (!periodMap.has(periodKey)) {
-            periodMap.set(periodKey, { start: thursday, end: wednesday });
-          }
-        });
-        
-        const periods = Array.from(periodMap.entries())
-          .map(([label, { start, end }]) => ({ label, start, end }))
-          .sort((a, b) => b.start.getTime() - a.start.getTime());
-        
-        setAvailablePeriods(periods);
-        setSelectedPeriods(new Set(periods.slice(0, 4).map(p => p.label)));
+      if (!attendance || attendance.length === 0) {
+        setAvailablePeriods([]);
+        setSelectedPeriods(new Set());
         setPeriodSelectionModal({ isOpen: true, workerId, workerName });
         return;
       }
       
-      // Use actual payroll_adjustments periods
-      const periods = adjustments.map(adj => ({
-        start: new Date(adj.period_start),
-        end: new Date(adj.period_end),
-        label: `${format(new Date(adj.period_start), 'MMM dd')} - ${format(new Date(adj.period_end), 'dd, yyyy')}`
-      }));
+      // Group by unique weeks (Thu-Wed periods)
+      const periodMap = new Map<string, { start: Date; end: Date }>();
+      attendance.forEach(att => {
+        const date = new Date(att.clock_in);
+        // Find the Thursday of this week or previous week
+        const dayOfWeek = date.getDay(); // 0=Sun, 4=Thu
+        const daysToThursday = dayOfWeek >= 4 ? dayOfWeek - 4 : dayOfWeek + 3;
+        const thursday = new Date(date);
+        thursday.setDate(date.getDate() - daysToThursday);
+        thursday.setHours(0, 0, 0, 0);
+        
+        const wednesday = new Date(thursday);
+        wednesday.setDate(thursday.getDate() + 6);
+        
+        const periodKey = `${format(thursday, 'MMM dd')} - ${format(wednesday, 'dd, yyyy')}`;
+        
+        if (!periodMap.has(periodKey)) {
+          periodMap.set(periodKey, { start: thursday, end: wednesday });
+        }
+      });
+      
+      const periods = Array.from(periodMap.entries())
+        .map(([label, { start, end }]) => ({ label, start, end }))
+        .sort((a, b) => b.start.getTime() - a.start.getTime());
       
       setAvailablePeriods(periods);
-      setSelectedPeriods(new Set(periods.slice(0, 4).map(p => p.label))); // Select last 4 weeks by default
+      setSelectedPeriods(new Set(periods.slice(0, 4).map(p => p.label)));
       setPeriodSelectionModal({ isOpen: true, workerId, workerName });
     } catch (error) {
       console.error('Error fetching periods:', error);
