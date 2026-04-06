@@ -302,7 +302,108 @@ export const PayrollPage: React.FC = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    // Create print window with formatted payroll table
+    const printWindow = window.open('', '', 'height=800,width=1200');
+    if (!printWindow) return;
+    
+    printWindow.document.write('<html><head><title>Payroll - Macrock Limestone</title>');
+    printWindow.document.write('<style>');
+    printWindow.document.write('body { font-family: Arial, sans-serif; padding: 20px; }');
+    printWindow.document.write('h1 { text-align: center; color: #1e40af; margin-bottom: 10px; }');
+    printWindow.document.write('.period { text-align: center; color: #6b7280; margin-bottom: 30px; }');
+    printWindow.document.write('h2 { text-align: center; background: #dbeafe; padding: 10px; margin: 20px 0; }');
+    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 20px 0; }');
+    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 12px; }');
+    printWindow.document.write('th { background-color: #1e40af; color: white; font-weight: bold; }');
+    printWindow.document.write('tr:nth-child(even) { background-color: #f9fafb; }');
+    printWindow.document.write('.total-row { background-color: #dbeafe !important; font-weight: bold; font-size: 14px; }');
+    printWindow.document.write('.text-right { text-align: right; }');
+    printWindow.document.write('.text-left { text-align: left; }');
+    printWindow.document.write('@media print { body { padding: 10px; } }');
+    printWindow.document.write('</style></head><body>');
+    
+    printWindow.document.write('<h1>Macrock Limestone</h1>');
+    printWindow.document.write(`<p class="period">Period Covered: ${format(dateRange.start, 'MMM dd')} - ${format(dateRange.end, 'dd, yyyy')}</p>`);
+    printWindow.document.write('<h2>COMMISSION SCHEDULE</h2>');
+    
+    printWindow.document.write('<table>');
+    printWindow.document.write('<thead><tr>');
+    printWindow.document.write('<th class="text-left">Name</th>');
+    printWindow.document.write('<th>DAYS</th>');
+    printWindow.document.write('<th>O.T</th>');
+    printWindow.document.write('<th>Rate</th>');
+    printWindow.document.write('<th>Bonus</th>');
+    printWindow.document.write('<th>SSS</th>');
+    printWindow.document.write('<th>Ded.</th>');
+    printWindow.document.write('<th>Subtotal</th>');
+    printWindow.document.write('<th>Total</th>');
+    printWindow.document.write('<th>Signature</th>');
+    printWindow.document.write('</tr></thead><tbody>');
+    
+    let subtotalSum = 0;
+    let sssSum = 0;
+    let dedSum = 0;
+    
+    payrollData.forEach(item => {
+      const edited = editedValues[item.worker.id] || { days: null, ot: null, dailyRate: null, bonus: 0, sss: 0, deduction: 0, deductionRemarks: '' };
+      const days = edited.days !== null ? edited.days : item.days;
+      const dailyRate = edited.dailyRate !== null ? edited.dailyRate : item.dailyRate;
+      const otHours = edited.ot !== null ? edited.ot : item.overtime;
+      const hourlyRate = dailyRate / 8;
+      const overtimePay = otHours * hourlyRate;
+      const basePay = days * dailyRate;
+      const subtotal = basePay + overtimePay + edited.bonus;
+      const total = subtotal - edited.sss - edited.deduction;
+      
+      subtotalSum += subtotal;
+      sssSum += edited.sss;
+      dedSum += edited.deduction;
+      
+      printWindow.document.write('<tr>');
+      printWindow.document.write(`<td class="text-left">${item.worker.full_name}</td>`);
+      printWindow.document.write(`<td>${days}</td>`);
+      printWindow.document.write(`<td>${otHours > 0 ? otHours.toFixed(0) : '0'}</td>`);
+      printWindow.document.write(`<td>${dailyRate.toFixed(0)}</td>`);
+      printWindow.document.write(`<td>${edited.bonus > 0 ? edited.bonus.toFixed(0) : '0'}</td>`);
+      printWindow.document.write(`<td>${edited.sss > 0 ? edited.sss.toFixed(0) : '0'}</td>`);
+      printWindow.document.write(`<td>${edited.deduction > 0 ? edited.deduction.toFixed(0) : '0'}</td>`);
+      printWindow.document.write(`<td class="text-right">₱${subtotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
+      printWindow.document.write(`<td class="text-right">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
+      printWindow.document.write('<td>________</td>');
+      printWindow.document.write('</tr>');
+    });
+    
+    const grandTotal = subtotalSum - sssSum - dedSum;
+    
+    printWindow.document.write('<tr class="total-row">');
+    printWindow.document.write('<td colspan="7" class="text-right">SUBTOTAL</td>');
+    printWindow.document.write(`<td class="text-right">₱${subtotalSum.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
+    printWindow.document.write('<td colspan="2"></td>');
+    printWindow.document.write('</tr>');
+    
+    printWindow.document.write('<tr class="total-row">');
+    printWindow.document.write('<td colspan="7" class="text-right">TOTAL SSS</td>');
+    printWindow.document.write(`<td class="text-right">-₱${sssSum.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
+    printWindow.document.write('<td colspan="2"></td>');
+    printWindow.document.write('</tr>');
+    
+    printWindow.document.write('<tr class="total-row">');
+    printWindow.document.write('<td colspan="7" class="text-right">TOTAL DEDUCTIONS</td>');
+    printWindow.document.write(`<td class="text-right">-₱${dedSum.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
+    printWindow.document.write('<td colspan="2"></td>');
+    printWindow.document.write('</tr>');
+    
+    printWindow.document.write('<tr class="total-row">');
+    printWindow.document.write('<td colspan="7" class="text-right">GRAND TOTAL</td>');
+    printWindow.document.write(`<td class="text-right">₱${grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
+    printWindow.document.write('<td colspan="2"></td>');
+    printWindow.document.write('</tr>');
+    
+    printWindow.document.write('</tbody></table>');
+    printWindow.document.write(`<p style="margin-top: 30px; text-align: center; color: #6b7280;">Printed on ${format(new Date(), 'MMMM dd, yyyy')}</p>`);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const handlePrintWorker = async (workerId: string) => {
