@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
-import { Calendar, Download, Edit2, Search } from 'lucide-react';
+import { Calendar, Download, Edit2, Search, User, X } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -8,6 +8,7 @@ import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { useAttendanceStore } from '../stores/attendanceStore';
 import { useAuthStore } from '../stores/authStore';
+import { useWorkerStore } from '../stores/workerStore';
 import { supabase } from '../lib/supabase';
 import { formatDate, formatTime, formatHours } from '../lib/utils';
 import type { AttendanceWithWorker } from '../types/database';
@@ -15,6 +16,7 @@ import type { AttendanceWithWorker } from '../types/database';
 export const AttendancePage: React.FC = () => {
   const { user } = useAuthStore();
   const { attendanceRecords, fetchAttendance, isLoading } = useAttendanceStore();
+  const { workers, fetchWorkers } = useWorkerStore();
   const [dateRange, setDateRange] = useState({
     start: startOfWeek(new Date(), { weekStartsOn: 1 }),
     end: endOfWeek(new Date(), { weekStartsOn: 1 }),
@@ -30,11 +32,17 @@ export const AttendancePage: React.FC = () => {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
+  const [workerAttendance, setWorkerAttendance] = useState<AttendanceWithWorker[]>([]);
+  const [isLoadingWorkerAttendance, setIsLoadingWorkerAttendance] = useState(false);
 
   const isAdmin = user?.role === 'admin';
   
+  // Use worker-specific attendance if a worker is selected, otherwise use date-filtered records
+  const displayRecords = selectedWorkerId ? workerAttendance : attendanceRecords;
+  
   // Filter attendance records based on search query
-  const filteredRecords = attendanceRecords.filter((record) => {
+  const filteredRecords = displayRecords.filter((record) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -42,10 +50,47 @@ export const AttendancePage: React.FC = () => {
       record.worker?.employee_id?.toLowerCase().includes(query)
     );
   });
+  
+  const selectedWorker = workers.find(w => w.id === selectedWorkerId);
 
   useEffect(() => {
+    fetchWorkers();
+    if (!selectedWorkerId) {
+      fetchAttendance(dateRange.start, dateRange.end);
+    }
+  }, [fetchWorkers, fetchAttendance, dateRange, selectedWorkerId]);
+
+  // Fetch all attendance records for selected worker
+  const handleWorkerSelect = async (workerId: string) => {
+    setSelectedWorkerId(workerId);
+    setSearchQuery(''); // Clear search when selecting worker
+    setIsLoadingWorkerAttendance(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .eq('worker_id', workerId)
+        .order('clock_in', { ascending: false });
+      
+      if (error) throw error;
+      setWorkerAttendance(data || []);
+    } catch (error) {
+      console.error('Error fetching worker attendance:', error);
+      setWorkerAttendance([]);
+    } finally {
+      setIsLoadingWorkerAttendance(false);
+    }
+  };
+
+  const handleClearWorkerSelection = () => {
+    setSelectedWorkerId(null);
+    setWorkerAttendance([]);
     fetchAttendance(dateRange.start, dateRange.end);
-  }, [fetchAttendance, dateRange]);
+  };
 
   const handleEditRecord = (record: AttendanceWithWorker) => {
     setEditingRecord(record);
@@ -155,12 +200,22 @@ export const AttendancePage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Attendance Records</h1>
-          <p className="text-gray-500">View and manage attendance history</p>
+          <p className="text-gray-500">
+            {selectedWorker ? `Viewing all attendance for ${selectedWorker.full_name}` : 'View and manage attendance history'}
+          </p>
         </div>
-        <Button variant="outline" onClick={exportToCSV}>
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          {selectedWorkerId && (
+            <Button variant="outline" onClick={handleClearWorkerSelection}>
+              <X className="w-4 h-4 mr-2" />
+              Clear Selection
+            </Button>
+          )}
+          <Button variant="outline" onClick={exportToCSV}>
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -182,20 +237,41 @@ export const AttendancePage: React.FC = () => {
                 </Button>
               </div>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by employee name or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <select
+                  value={selectedWorkerId || ''}
+                  onChange={(e) => e.target.value ? handleWorkerSelect(e.target.value) : handleClearWorkerSelection()}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                  disabled={isLoadingWorkerAttendance}
+                >
+                  <option value="">Select a worker to view all attendance...</option>
+                  {workers
+                    .filter(w => w.is_active)
+                    .sort((a, b) => a.full_name.localeCompare(b.full_name))
+                    .map((worker) => (
+                      <option key={worker.id} value={worker.id}>
+                        {worker.full_name} ({worker.employee_id})
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by employee name or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
+          {(isLoading || isLoadingWorkerAttendance) ? (
             <div className="p-8 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
             </div>
