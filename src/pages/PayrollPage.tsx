@@ -871,19 +871,8 @@ export const PayrollPage: React.FC = () => {
                   
                   return (
                     <tr key={item.worker.id} className="hover:bg-gray-50">
-                      <td className="px-2 py-1.5 text-sm text-gray-900 border-r border-gray-200">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate">{item.worker.full_name}</span>
-                          {isAdmin && (
-                            <button
-                              onClick={() => openPeriodSelection(item.worker.id, item.worker.full_name)}
-                              className="text-blue-600 hover:text-blue-800 flex-shrink-0"
-                              title="Print payroll history"
-                            >
-                              <FileText className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
+                      <td className="px-2 py-1.5 text-sm text-gray-900 border-r border-gray-200 truncate">
+                        {item.worker.full_name}
                       </td>
                       <td className="px-1 py-1.5 text-sm text-center text-gray-900 border-r border-gray-200">
                         {isAdmin ? (
@@ -995,7 +984,13 @@ export const PayrollPage: React.FC = () => {
                         ________
                       </td>
                       <td className="px-1 py-1.5 text-sm text-center print:hidden">
-                        {/* Removed - Print button moved to name column */}
+                        <button
+                          onClick={() => openPeriodSelection(item.worker.id, item.worker.full_name)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                          title="Print payroll history"
+                        >
+                          Print
+                        </button>
                       </td>
                     </tr>
                   );
