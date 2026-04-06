@@ -443,9 +443,17 @@ export const PayrollPage: React.FC = () => {
       const periodMap = new Map<string, { start: Date; end: Date }>();
       attendance.forEach(att => {
         const date = new Date(att.clock_in);
-        // Find the Thursday of this week or previous week
-        const dayOfWeek = date.getDay(); // 0=Sun, 4=Thu
-        const daysToThursday = dayOfWeek >= 4 ? dayOfWeek - 4 : dayOfWeek + 3;
+        // Find the Thursday that starts the week containing this date
+        const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+        let daysToThursday;
+        if (dayOfWeek === 0) { // Sunday - go back 3 days to previous Thursday
+          daysToThursday = 3;
+        } else if (dayOfWeek < 4) { // Mon-Wed - go back to previous Thursday
+          daysToThursday = dayOfWeek + 3;
+        } else { // Thu-Sat - go back to this week's Thursday
+          daysToThursday = dayOfWeek - 4;
+        }
+        
         const thursday = new Date(date);
         thursday.setDate(date.getDate() - daysToThursday);
         thursday.setHours(0, 0, 0, 0);
