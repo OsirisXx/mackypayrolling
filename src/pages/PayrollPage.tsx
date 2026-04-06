@@ -423,28 +423,26 @@ export const PayrollPage: React.FC = () => {
   };
 
   const openPeriodSelection = async (workerId: string, workerName: string) => {
-    // Use ONLY payroll_adjustments - these are the exact periods from main payroll page
+    // Generate ALL weekly periods by adding/subtracting 7 days from base date (Feb 06, 2026)
+    // This matches how the main payroll page navigates periods
     try {
-      const { data: adjustments } = await supabase
-        .from('payroll_adjustments')
-        .select('period_start, period_end')
-        .eq('worker_id', workerId)
-        .order('period_start', { ascending: false });
+      const baseDate = new Date('2026-02-06'); // Thursday, Feb 06, 2026
+      const periods: Array<{ label: string; start: Date; end: Date }> = [];
       
-      if (!adjustments || adjustments.length === 0) {
-        setAvailablePeriods([]);
-        setSelectedPeriods(new Set());
-        setPeriodSelectionModal({ isOpen: true, workerId, workerName });
-        return;
+      // Generate periods: 52 weeks back and 52 weeks forward from base date
+      for (let weekOffset = -52; weekOffset <= 52; weekOffset++) {
+        const periodStart = new Date(baseDate);
+        periodStart.setDate(baseDate.getDate() + (weekOffset * 7));
+        
+        const periodEnd = new Date(periodStart);
+        periodEnd.setDate(periodStart.getDate() + 6);
+        
+        const label = `${format(periodStart, 'MMM dd')} - ${format(periodEnd, 'dd, yyyy')}`;
+        periods.push({ label, start: periodStart, end: periodEnd });
       }
       
-      // Convert adjustments to period objects with exact same format as main payroll
-      const periods = adjustments.map(adj => {
-        const start = new Date(adj.period_start);
-        const end = new Date(adj.period_end);
-        const label = `${format(start, 'MMM dd')} - ${format(end, 'dd, yyyy')}`;
-        return { label, start, end };
-      });
+      // Sort by most recent first
+      periods.sort((a, b) => b.start.getTime() - a.start.getTime());
       
       setAvailablePeriods(periods);
       setSelectedPeriods(new Set()); // Start with NO periods selected
