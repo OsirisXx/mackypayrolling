@@ -559,34 +559,45 @@ export const PayrollPage: React.FC = () => {
         };
       });
 
-      // Group attendance by 7-day periods (Thursday to Wednesday) starting from Feb 6, 2026
-      // Calculate days based on total hours worked (8 hours = 1 day) to match main payroll
+      // Group attendance by Thursday-Wednesday weeks (matching main payroll page logic)
       const weeklyData: Record<string, { totalHours: number; otHours: number; periodStart: Date; periodEnd: Date }> = {};
-      const baseDate = new Date('2026-02-06');
       
       (allAttendance || []).forEach(att => {
         const date = new Date(att.clock_in);
         
-        // Calculate which 7-day period this date belongs to
-        const daysSinceBase = Math.floor((date.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
-        const periodIndex = Math.floor(daysSinceBase / 7);
+        // Find the Thursday of the week containing this date
+        const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 4=Thu
+        let daysToThursday;
+        if (dayOfWeek === 0) { // Sunday
+          daysToThursday = 3; // Go back to previous Thursday
+        } else if (dayOfWeek < 4) { // Mon-Wed
+          daysToThursday = dayOfWeek + 3; // Go back to previous Thursday
+        } else { // Thu-Sat
+          daysToThursday = dayOfWeek - 4; // Go back to this Thursday
+        }
         
-        const periodStart = new Date(baseDate);
-        periodStart.setDate(baseDate.getDate() + (periodIndex * 7));
+        const thursday = new Date(date);
+        thursday.setDate(date.getDate() - daysToThursday);
+        thursday.setHours(0, 0, 0, 0);
         
-        const periodEnd = new Date(periodStart);
-        periodEnd.setDate(periodStart.getDate() + 6);
+        const wednesday = new Date(thursday);
+        wednesday.setDate(thursday.getDate() + 6);
         
-        const weekKey = `${format(periodStart, 'MMM dd')} - ${format(periodEnd, 'dd, yyyy')}`;
+        const weekKey = `${format(thursday, 'MMM dd')} - ${format(wednesday, 'dd, yyyy')}`;
         
         if (!weeklyData[weekKey]) {
-          weeklyData[weekKey] = { totalHours: 0, otHours: 0, periodStart, periodEnd };
+          weeklyData[weekKey] = { totalHours: 0, otHours: 0, periodStart: thursday, periodEnd: wednesday };
         }
         
         // Sum hours worked and overtime hours
         weeklyData[weekKey].totalHours += att.hours_worked || 0;
         weeklyData[weekKey].otHours += att.overtime_hours || 0;
       });
+      
+      // Debug: Log what periods we have vs what was selected
+      console.log('Available periods in weeklyData:', Object.keys(weeklyData));
+      console.log('Selected periods:', Array.from(selectedPeriods));
+      console.log('Matching periods:', Object.keys(weeklyData).filter(p => selectedPeriods.has(p)));
 
       // Create print window
       const printWindow = window.open('', '', 'height=800,width=1000');
