@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { auditLog } from '../lib/auditLog';
-import { Download, Printer, ChevronLeft, ChevronRight, MessageSquare, FileText } from 'lucide-react';
+import { Download, Printer, ChevronLeft, ChevronRight, MessageSquare, FileText, Search } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { supabase } from '../lib/supabase';
@@ -82,6 +82,7 @@ export const PayrollPage: React.FC = () => {
   const [periodSelectionModal, setPeriodSelectionModal] = useState<{ isOpen: boolean; workerId: string; workerName: string }>({ isOpen: false, workerId: '', workerName: '' });
   const [availablePeriods, setAvailablePeriods] = useState<Array<{ start: Date; end: Date; label: string }>>([]);
   const [selectedPeriods, setSelectedPeriods] = useState<Set<string>>(new Set());
+  const [periodSearchQuery, setPeriodSearchQuery] = useState('');
   
   // Resizable columns state (pixel widths)
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1153,7 +1154,10 @@ export const PayrollPage: React.FC = () => {
       {/* Period Selection Modal */}
       <Modal
         isOpen={periodSelectionModal.isOpen}
-        onClose={() => setPeriodSelectionModal({ isOpen: false, workerId: '', workerName: '' })}
+        onClose={() => {
+          setPeriodSelectionModal({ isOpen: false, workerId: '', workerName: '' });
+          setPeriodSearchQuery('');
+        }}
         title={`Select Periods for ${periodSelectionModal.workerName}`}
         size="md"
       >
@@ -1162,24 +1166,42 @@ export const PayrollPage: React.FC = () => {
             Select the weeks you want to include in the payroll history printout:
           </p>
           
+          {/* Search input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by week or year (e.g., 'Mar 20' or '2026')..."
+              value={periodSearchQuery}
+              onChange={(e) => setPeriodSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          
           <div className="max-h-96 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-4">
             {availablePeriods.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-4">No payroll periods found for this worker</p>
             ) : (
-              availablePeriods.map((period) => (
-                <label
-                  key={period.label}
-                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer border border-gray-200"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedPeriods.has(period.label)}
-                    onChange={() => togglePeriodSelection(period.label)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-sm font-medium text-gray-700">{period.label}</span>
-                </label>
-              ))
+              availablePeriods
+                .filter(period => {
+                  if (!periodSearchQuery) return true;
+                  const query = periodSearchQuery.toLowerCase();
+                  return period.label.toLowerCase().includes(query);
+                })
+                .map((period) => (
+                  <label
+                    key={period.label}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer border border-gray-200"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPeriods.has(period.label)}
+                      onChange={() => togglePeriodSelection(period.label)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">{period.label}</span>
+                  </label>
+                ))
             )}
           </div>
 
