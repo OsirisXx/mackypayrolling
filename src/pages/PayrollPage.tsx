@@ -317,23 +317,23 @@ export const PayrollPage: React.FC = () => {
     printWindow.document.write('h1 { text-align: center; color: #1e40af; margin-bottom: 5px; font-size: 18px; }');
     printWindow.document.write('.period { text-align: center; color: #6b7280; margin-bottom: 10px; font-size: 12px; }');
     printWindow.document.write('h2 { text-align: center; background: #dbeafe; padding: 5px; margin: 10px 0; font-size: 14px; }');
-    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 10px 0; table-layout: fixed; }');
-    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 4px 2px; text-align: center; font-size: 9px; word-wrap: break-word; }');
-    printWindow.document.write('th { background-color: #1e40af; color: white; font-weight: bold; font-size: 10px; }');
+    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 10px 0; table-layout: auto; }');
+    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: center; font-size: 10px; white-space: nowrap; }');
+    printWindow.document.write('th { background-color: #1e40af; color: white; font-weight: bold; font-size: 11px; }');
     printWindow.document.write('tr:nth-child(even) { background-color: #f9fafb; }');
-    printWindow.document.write('.total-row { background-color: #dbeafe !important; font-weight: bold; font-size: 10px; }');
-    printWindow.document.write('.text-right { text-align: right; padding-right: 4px; }');
-    printWindow.document.write('.text-left { text-align: left; padding-left: 4px; }');
-    printWindow.document.write('th:nth-child(1), td:nth-child(1) { width: 15%; }');
-    printWindow.document.write('th:nth-child(2), td:nth-child(2) { width: 6%; }');
-    printWindow.document.write('th:nth-child(3), td:nth-child(3) { width: 6%; }');
-    printWindow.document.write('th:nth-child(4), td:nth-child(4) { width: 7%; }');
-    printWindow.document.write('th:nth-child(5), td:nth-child(5) { width: 8%; }');
-    printWindow.document.write('th:nth-child(6), td:nth-child(6) { width: 6%; }');
-    printWindow.document.write('th:nth-child(7), td:nth-child(7) { width: 6%; }');
-    printWindow.document.write('th:nth-child(8), td:nth-child(8) { width: 12%; }');
-    printWindow.document.write('th:nth-child(9), td:nth-child(9) { width: 12%; }');
-    printWindow.document.write('th:nth-child(10), td:nth-child(10) { width: 12%; }');
+    printWindow.document.write('.total-row { background-color: #dbeafe !important; font-weight: bold; font-size: 11px; }');
+    printWindow.document.write('.text-right { text-align: right; padding-right: 6px; }');
+    printWindow.document.write('.text-left { text-align: left; padding-left: 6px; white-space: normal; }');
+    printWindow.document.write('th:nth-child(1), td:nth-child(1) { min-width: 120px; max-width: 180px; white-space: normal; }');
+    printWindow.document.write('th:nth-child(2), td:nth-child(2) { width: 40px; }');
+    printWindow.document.write('th:nth-child(3), td:nth-child(3) { width: 35px; }');
+    printWindow.document.write('th:nth-child(4), td:nth-child(4) { width: 45px; }');
+    printWindow.document.write('th:nth-child(5), td:nth-child(5) { width: 55px; }');
+    printWindow.document.write('th:nth-child(6), td:nth-child(6) { width: 40px; }');
+    printWindow.document.write('th:nth-child(7), td:nth-child(7) { width: 40px; }');
+    printWindow.document.write('th:nth-child(8), td:nth-child(8) { width: 90px; }');
+    printWindow.document.write('th:nth-child(9), td:nth-child(9) { width: 90px; }');
+    printWindow.document.write('th:nth-child(10), td:nth-child(10) { width: 80px; }');
     printWindow.document.write('@media print { body { padding: 5px; } table { page-break-inside: auto; } tr { page-break-inside: avoid; page-break-after: auto; } }');
     printWindow.document.write('</style></head><body>');
     
@@ -422,48 +422,67 @@ export const PayrollPage: React.FC = () => {
   };
 
   const openPeriodSelection = async (workerId: string, workerName: string) => {
-    // Fetch all attendance records for this worker to determine available periods
+    // Fetch all payroll_adjustments for this worker to get actual payroll periods
     try {
-      const { data: attendance } = await supabase
-        .from('attendance')
-        .select('clock_in')
+      const { data: adjustments } = await supabase
+        .from('payroll_adjustments')
+        .select('period_start, period_end')
         .eq('worker_id', workerId)
-        .in('status', ['clocked_out', 'completed_quota'])
-        .order('clock_in', { ascending: false });
+        .order('period_start', { ascending: false });
       
-      if (!attendance || attendance.length === 0) {
-        setAvailablePeriods([]);
-        setSelectedPeriods(new Set());
+      if (!adjustments || adjustments.length === 0) {
+        // If no adjustments, try to get periods from attendance grouped by weeks
+        const { data: attendance } = await supabase
+          .from('attendance')
+          .select('clock_in')
+          .eq('worker_id', workerId)
+          .in('status', ['clocked_out', 'completed_quota'])
+          .order('clock_in', { ascending: false });
+        
+        if (!attendance || attendance.length === 0) {
+          setAvailablePeriods([]);
+          setSelectedPeriods(new Set());
+          setPeriodSelectionModal({ isOpen: true, workerId, workerName });
+          return;
+        }
+        
+        // Group by unique weeks (Thu-Wed periods)
+        const periodMap = new Map<string, { start: Date; end: Date }>();
+        attendance.forEach(att => {
+          const date = new Date(att.clock_in);
+          // Find the Thursday of this week or previous week
+          const dayOfWeek = date.getDay(); // 0=Sun, 4=Thu
+          const daysToThursday = dayOfWeek >= 4 ? dayOfWeek - 4 : dayOfWeek + 3;
+          const thursday = new Date(date);
+          thursday.setDate(date.getDate() - daysToThursday);
+          thursday.setHours(0, 0, 0, 0);
+          
+          const wednesday = new Date(thursday);
+          wednesday.setDate(thursday.getDate() + 6);
+          
+          const periodKey = `${format(thursday, 'MMM dd')} - ${format(wednesday, 'dd, yyyy')}`;
+          
+          if (!periodMap.has(periodKey)) {
+            periodMap.set(periodKey, { start: thursday, end: wednesday });
+          }
+        });
+        
+        const periods = Array.from(periodMap.entries())
+          .map(([label, { start, end }]) => ({ label, start, end }))
+          .sort((a, b) => b.start.getTime() - a.start.getTime());
+        
+        setAvailablePeriods(periods);
+        setSelectedPeriods(new Set(periods.slice(0, 4).map(p => p.label)));
         setPeriodSelectionModal({ isOpen: true, workerId, workerName });
         return;
       }
       
-      // Group attendance into 7-day periods starting from Feb 6, 2026
-      const baseDate = new Date('2026-02-06');
-      const periodMap = new Map<string, { start: Date; end: Date }>();
-      
-      attendance.forEach(att => {
-        const date = new Date(att.clock_in);
-        const daysSinceBase = Math.floor((date.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
-        const periodIndex = Math.floor(daysSinceBase / 7);
-        
-        const periodStart = new Date(baseDate);
-        periodStart.setDate(baseDate.getDate() + (periodIndex * 7));
-        
-        const periodEnd = new Date(periodStart);
-        periodEnd.setDate(periodStart.getDate() + 6);
-        
-        const periodKey = `${format(periodStart, 'MMM dd')} - ${format(periodEnd, 'dd, yyyy')}`;
-        
-        if (!periodMap.has(periodKey)) {
-          periodMap.set(periodKey, { start: periodStart, end: periodEnd });
-        }
-      });
-      
-      // Convert to array and sort by date (most recent first)
-      const periods = Array.from(periodMap.entries())
-        .map(([label, { start, end }]) => ({ label, start, end }))
-        .sort((a, b) => b.start.getTime() - a.start.getTime());
+      // Use actual payroll_adjustments periods
+      const periods = adjustments.map(adj => ({
+        start: new Date(adj.period_start),
+        end: new Date(adj.period_end),
+        label: `${format(new Date(adj.period_start), 'MMM dd')} - ${format(new Date(adj.period_end), 'dd, yyyy')}`
+      }));
       
       setAvailablePeriods(periods);
       setSelectedPeriods(new Set(periods.slice(0, 4).map(p => p.label))); // Select last 4 weeks by default
