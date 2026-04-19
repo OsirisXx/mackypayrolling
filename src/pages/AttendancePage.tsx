@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
-import { Calendar, Download, Edit2, Search, User, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Edit2, Search, User, X } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -10,7 +10,7 @@ import { useAttendanceStore } from '../stores/attendanceStore';
 import { useAuthStore } from '../stores/authStore';
 import { useWorkerStore } from '../stores/workerStore';
 import { supabase } from '../lib/supabase';
-import { formatDate, formatTime, formatHours } from '../lib/utils';
+import { formatDate, formatDateTime, formatTime, formatHours } from '../lib/utils';
 import type { AttendanceWithWorker } from '../types/database';
 
 export const AttendancePage: React.FC = () => {
@@ -36,6 +36,11 @@ export const AttendancePage: React.FC = () => {
   const [workerAttendance, setWorkerAttendance] = useState<AttendanceWithWorker[]>([]);
   const [isLoadingWorkerAttendance, setIsLoadingWorkerAttendance] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const pageSizeOptions = [10, 25, 50, 100];
+
   const isAdmin = user?.role === 'admin';
   
   // Use worker-specific attendance if a worker is selected, otherwise use date-filtered records
@@ -52,6 +57,20 @@ export const AttendancePage: React.FC = () => {
   });
   
   const selectedWorker = workers.find(w => w.id === selectedWorkerId);
+
+  // Pagination logic
+  const totalRecords = filteredRecords.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedRecords = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize;
+    return filteredRecords.slice(start, start + pageSize);
+  }, [filteredRecords, safeCurrentPage, pageSize]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedWorkerId, dateRange, pageSize]);
 
   useEffect(() => {
     fetchWorkers();
@@ -178,8 +197,8 @@ export const AttendancePage: React.FC = () => {
       formatDate(r.clock_in),
       r.worker?.full_name || '',
       r.worker?.employee_id || '',
-      formatTime(r.clock_in),
-      r.clock_out ? formatTime(r.clock_out) : '',
+      formatDateTime(r.clock_in),
+      r.clock_out ? formatDateTime(r.clock_out) : '',
       r.hours_worked?.toFixed(2) || '',
       r.overtime_hours?.toFixed(2) || '',
       r.status,
@@ -316,7 +335,7 @@ export const AttendancePage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredRecords.map((record) => (
+                  {paginatedRecords.map((record) => (
                     <tr key={record.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(record.clock_in)}
@@ -330,10 +349,10 @@ export const AttendancePage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatTime(record.clock_in)}
+                        {formatDateTime(record.clock_in)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.clock_out ? formatTime(record.clock_out) : '-'}
+                        {record.clock_out ? formatDateTime(record.clock_out) : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.hours_worked ? formatHours(record.hours_worked) : '-'}
@@ -366,6 +385,102 @@ export const AttendancePage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {filteredRecords.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <span>Show</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="px-2 py-1 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+            <span>per page</span>
+            <span className="mx-2 text-gray-400">|</span>
+            <span>
+              {((safeCurrentPage - 1) * pageSize) + 1}–{Math.min(safeCurrentPage * pageSize, totalRecords)} of {totalRecords} records
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={safeCurrentPage === 1}
+              className="p-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="First page"
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={safeCurrentPage === 1}
+              className="p-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Page numbers */}
+            {(() => {
+              const pages: (number | string)[] = [];
+              const maxVisible = 5;
+              let start = Math.max(1, safeCurrentPage - Math.floor(maxVisible / 2));
+              const end = Math.min(totalPages, start + maxVisible - 1);
+              start = Math.max(1, end - maxVisible + 1);
+
+              if (start > 1) {
+                pages.push(1);
+                if (start > 2) pages.push('...');
+              }
+              for (let i = start; i <= end; i++) pages.push(i);
+              if (end < totalPages) {
+                if (end < totalPages - 1) pages.push('...');
+                pages.push(totalPages);
+              }
+
+              return pages.map((page, idx) =>
+                typeof page === 'string' ? (
+                  <span key={`ellipsis-${idx}`} className="px-1 text-gray-400 text-sm">…</span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`min-w-[32px] h-8 rounded-md text-sm font-medium transition-colors ${
+                      page === safeCurrentPage
+                        ? 'bg-blue-600 text-white border border-blue-600'
+                        : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              );
+            })()}
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={safeCurrentPage === totalPages}
+              className="p-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={safeCurrentPage === totalPages}
+              className="p-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Last page"
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Edit Attendance Modal */}
       <Modal

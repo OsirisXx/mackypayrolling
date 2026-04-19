@@ -294,7 +294,7 @@ export const AuditLogPage: React.FC = () => {
                     onClick={() => setSelectedLog(log)}
                   >
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {format(new Date(log.created_at), 'MMM d, yyyy HH:mm:ss')}
+                      {format(new Date(log.created_at), 'MMM d, yyyy hh:mm:ss aa')}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{log.user_email || 'System'}</div>
@@ -369,7 +369,7 @@ export const AuditLogPage: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-medium text-gray-500 uppercase">Timestamp</label>
-                    <p className="text-sm">{format(new Date(selectedLog.created_at), 'PPpp')}</p>
+                    <p className="text-sm">{format(new Date(selectedLog.created_at), 'MMM d, yyyy hh:mm:ss aa')}</p>
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-500 uppercase">Severity</label>

@@ -20,6 +20,20 @@ interface AttendanceState {
   clearError: () => void;
 }
 
+export function mergeAttendanceRecords(
+  todayData: AttendanceWithWorker[],
+  openData: AttendanceWithWorker[]
+): AttendanceWithWorker[] {
+  const merged = [...todayData];
+  const existingIds = new Set(todayData.map(r => r.id));
+  for (const record of openData) {
+    if (!existingIds.has(record.id)) {
+      merged.push(record);
+    }
+  }
+  return merged;
+}
+
 export const useAttendanceStore = create<AttendanceState>((set, get) => ({
   attendanceRecords: [],
   todayRecords: [],
@@ -58,7 +72,9 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const today = new Date();
-      const { data, error } = await supabase
+
+      // Query 1: Today's records (existing behavior)
+      const { data: todayData, error: todayError } = await supabase
         .from('attendance')
         .select(`
           *,
@@ -68,8 +84,24 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
         .lte('clock_in', endOfDay(today).toISOString())
         .order('clock_in', { ascending: false });
 
-      if (error) throw error;
-      set({ todayRecords: data || [], isLoading: false });
+      if (todayError) throw todayError;
+
+      // Query 2: Open shifts from any day (catches overnight shifts)
+      const { data: openData, error: openError } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .eq('status', 'clocked_in')
+        .order('clock_in', { ascending: false });
+
+      if (openError) throw openError;
+
+      // Merge and deduplicate
+      const allRecords = mergeAttendanceRecords(todayData || [], openData || []);
+
+      set({ todayRecords: allRecords, isLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'An error occurred';
       set({ error: message, isLoading: false });
