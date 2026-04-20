@@ -4,6 +4,9 @@ import { auditLog } from '../lib/auditLog';
 import type { Attendance, AttendanceWithWorker } from '../types/database';
 import { differenceInMinutes, startOfDay, endOfDay } from 'date-fns';
 
+// Track whether auto-timeout has already run this session
+let autoTimeoutRanThisSession = false;
+
 interface AttendanceState {
   attendanceRecords: AttendanceWithWorker[];
   todayRecords: AttendanceWithWorker[];
@@ -98,7 +101,66 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
 
       if (openError) throw openError;
 
-      // Merge and deduplicate (auto-timeout disabled — use manual cleanup instead)
+      // Auto-close stale open shifts from PREVIOUS days only (not today)
+      // Runs once per browser session to avoid repeated closures
+      if (!autoTimeoutRanThisSession) {
+        autoTimeoutRanThisSession = true;
+
+        const todayStart = startOfDay(today);
+        const staleRecords = (openData || []).filter(
+          (r) => new Date(r.clock_in) < todayStart
+        );
+
+        if (staleRecords.length > 0) {
+          for (const stale of staleRecords) {
+            const clockIn = new Date(stale.clock_in);
+            // Set clock_out to 8 hours after clock_in
+            const autoClockOut = new Date(clockIn.getTime() + 8 * 60 * 60 * 1000);
+
+            const updatePayload: Record<string, unknown> = {
+              clock_out: autoClockOut.toISOString(),
+              hours_worked: 8,
+              overtime_hours: stale.overtime_hours || 0,
+              status: 'clocked_out',
+              notes: `Auto-timed out (forgot to clock out)${stale.notes ? ' | ' + stale.notes : ''}`,
+            };
+
+            // Close any dangling OT session too
+            if (stale.ot_clock_in && !stale.ot_clock_out) {
+              updatePayload.ot_clock_out = autoClockOut.toISOString();
+            }
+
+            await supabase
+              .from('attendance')
+              .update(updatePayload)
+              .eq('id', stale.id);
+          }
+
+          // Re-fetch after auto-closing
+          const { data: freshOpenData, error: freshOpenError } = await supabase
+            .from('attendance')
+            .select('*, worker:workers(*)')
+            .eq('status', 'clocked_in')
+            .order('clock_in', { ascending: false });
+
+          if (freshOpenError) throw freshOpenError;
+
+          const { data: freshTodayData, error: freshTodayError } = await supabase
+            .from('attendance')
+            .select('*, worker:workers(*)')
+            .gte('clock_in', startOfDay(today).toISOString())
+            .lte('clock_in', endOfDay(today).toISOString())
+            .order('clock_in', { ascending: false });
+
+          if (freshTodayError) throw freshTodayError;
+
+          const allRecords = mergeAttendanceRecords(freshTodayData || [], freshOpenData || []);
+          set({ todayRecords: allRecords, isLoading: false });
+          return;
+        }
+      }
+
+      // Merge and deduplicate
       const allRecords = mergeAttendanceRecords(todayData || [], openData || []);
 
       set({ todayRecords: allRecords, isLoading: false });
