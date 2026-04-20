@@ -98,7 +98,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
 
       if (openError) throw openError;
 
-      // Merge and deduplicate
+      // Merge and deduplicate (auto-timeout disabled — use manual cleanup instead)
       const allRecords = mergeAttendanceRecords(todayData || [], openData || []);
 
       set({ todayRecords: allRecords, isLoading: false });
