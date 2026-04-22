@@ -275,6 +275,12 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       const clockOut = new Date();
       const clockIn = new Date(record.clock_in);
       const minutesWorked = differenceInMinutes(clockOut, clockIn);
+
+      // Prevent instant clock-out (less than 1 minute since clock-in)
+      if (minutesWorked < 1) {
+        throw new Error('Cannot clock out within 1 minute of clocking in. Please try again later.');
+      }
+
       const actualHoursWorked = Math.round((minutesWorked / 60) * 100) / 100;
       // 15-minute grace period: if 7h45m+ (7.75h), round up to 8
       const gracedHours = actualHoursWorked >= 7.75 ? Math.max(actualHoursWorked, 8) : actualHoursWorked;
