@@ -163,6 +163,58 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       // Merge and deduplicate
       const allRecords = mergeAttendanceRecords(todayData || [], openData || []);
 
+      // Auto clock-out shifts open for 8h15m+ (today's records)
+      const now = new Date();
+      const autoCloseThresholdMinutes = 8 * 60 + 15; // 8 hours 15 minutes
+      const overdueRecords = allRecords.filter(
+        (r) => r.status === 'clocked_in' && differenceInMinutes(now, new Date(r.clock_in)) >= autoCloseThresholdMinutes
+      );
+
+      if (overdueRecords.length > 0) {
+        for (const overdue of overdueRecords) {
+          const clockIn = new Date(overdue.clock_in);
+          const autoClockOut = new Date(clockIn.getTime() + 8 * 60 * 60 * 1000);
+
+          const updatePayload: Record<string, unknown> = {
+            clock_out: autoClockOut.toISOString(),
+            hours_worked: 8,
+            overtime_hours: overdue.overtime_hours || 0,
+            status: 'clocked_out',
+            notes: `Auto clock-out (8h15m limit)${overdue.notes ? ' | ' + overdue.notes : ''}`,
+          };
+
+          if (overdue.ot_clock_in && !overdue.ot_clock_out) {
+            updatePayload.ot_clock_out = autoClockOut.toISOString();
+          }
+
+          await supabase
+            .from('attendance')
+            .update(updatePayload)
+            .eq('id', overdue.id);
+        }
+
+        // Re-fetch after auto-closing
+        const { data: refreshedToday, error: refreshTodayErr } = await supabase
+          .from('attendance')
+          .select('*, worker:workers(*)')
+          .gte('clock_in', startOfDay(today).toISOString())
+          .lte('clock_in', endOfDay(today).toISOString())
+          .order('clock_in', { ascending: false });
+
+        if (refreshTodayErr) throw refreshTodayErr;
+
+        const { data: refreshedOpen, error: refreshOpenErr } = await supabase
+          .from('attendance')
+          .select('*, worker:workers(*)')
+          .eq('status', 'clocked_in')
+          .order('clock_in', { ascending: false });
+
+        if (refreshOpenErr) throw refreshOpenErr;
+
+        set({ todayRecords: mergeAttendanceRecords(refreshedToday || [], refreshedOpen || []), isLoading: false });
+        return;
+      }
+
       set({ todayRecords: allRecords, isLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'An error occurred';
@@ -224,8 +276,10 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       const clockIn = new Date(record.clock_in);
       const minutesWorked = differenceInMinutes(clockOut, clockIn);
       const actualHoursWorked = Math.round((minutesWorked / 60) * 100) / 100;
+      // 15-minute grace period: if 7h45m+ (7.75h), round up to 8
+      const gracedHours = actualHoursWorked >= 7.75 ? Math.max(actualHoursWorked, 8) : actualHoursWorked;
       // Cap regular hours at 8 max - OT requires manager approval via OT scan
-      const hoursWorked = Math.min(actualHoursWorked, 8);
+      const hoursWorked = Math.min(gracedHours, 8);
       // OT is NOT automatically calculated - manager must use OT scan mode
       const overtimeHours = record.overtime_hours || 0;
 
