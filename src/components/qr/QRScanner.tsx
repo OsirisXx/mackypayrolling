@@ -3,20 +3,23 @@ import { BrowserMultiFormatReader } from '@zxing/browser';
 import { Card, CardContent, CardHeader } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Camera, CameraOff } from 'lucide-react';
+import { shouldFireOnScan } from '../../lib/attendanceHelpers';
 
 interface QRScannerProps {
   onScan: (result: string) => void;
   isProcessing?: boolean;
   autoStart?: boolean;
+  debounceMs?: number;
 }
 
-export const QRScanner: React.FC<QRScannerProps> = ({ onScan, isProcessing, autoStart = false }) => {
+export const QRScanner: React.FC<QRScannerProps> = ({ onScan, isProcessing, autoStart = false, debounceMs = 3000 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const cleanupFnRef = useRef<(() => void) | null>(null);
+  const lastDecodeRef = useRef<{ value: string; time: number } | null>(null);
 
   // Store cleanup function in ref so it can be called from unmount effect
   cleanupFnRef.current = () => {
@@ -86,8 +89,12 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, isProcessing, auto
         stream,
         videoRef.current!,
         (result) => {
-          if (result && !isProcessing) {
-            onScan(result.getText());
+          if (result) {
+            const current = { value: result.getText(), time: Date.now() };
+            if (shouldFireOnScan(current, lastDecodeRef.current, debounceMs, isProcessing ?? false)) {
+              lastDecodeRef.current = current;
+              onScan(current.value);
+            }
           }
         }
       );
@@ -102,7 +109,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScan, isProcessing, auto
         streamRef.current = null;
       }
     }
-  }, [isProcessing, onScan]);
+  }, [isProcessing, onScan, debounceMs]);
 
   // Auto-start effect
   useEffect(() => {

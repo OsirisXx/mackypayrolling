@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+import { differenceInMinutes } from 'date-fns';
 import { QRScanner } from '../components/qr/QRScanner';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -9,6 +10,7 @@ import { Badge } from '../components/ui/Badge';
 import { useWorkerStore } from '../stores/workerStore';
 import { useAttendanceStore } from '../stores/attendanceStore';
 import { useAuthStore } from '../stores/authStore';
+import { isScanAllowed } from '../lib/attendanceHelpers';
 import { formatTime, formatCurrency } from '../lib/utils';
 import { CheckCircle, Clock, Package, AlertCircle, Timer, Zap } from 'lucide-react';
 import type { Worker, AttendanceWithWorker } from '../types/database';
@@ -48,8 +50,12 @@ export const ScanPage: React.FC = () => {
     isOTModeRef.current = isOTMode;
   }, [isOTMode]);
   
-  // Prevent duplicate scans - track last scanned QR and time
-  const lastScanRef = React.useRef<{ qr: string; time: number } | null>(null);
+  // Global cooldown: timestamp of last successful action
+  const lastActionTimeRef = React.useRef<number>(0);
+  // Per-worker cooldown: maps worker_id → timestamp of last successful action
+  const workerCooldownMap = React.useRef<Map<string, number>>(new Map());
+  
+  const ACTION_COOLDOWN_MS = 10_000;
   
   const isManager = user?.role === 'manager' || user?.role === 'admin';
   
@@ -83,14 +89,12 @@ export const ScanPage: React.FC = () => {
   const handleScan = async (qrCode: string) => {
     if (isProcessing) return;
     
-    // Prevent duplicate scans within 3 seconds
     const now = Date.now();
-    if (lastScanRef.current && 
-        lastScanRef.current.qr === qrCode && 
-        now - lastScanRef.current.time < 3000) {
+
+    // Global cooldown: block all scans for 10 seconds after any successful action
+    if (!isScanAllowed(now, lastActionTimeRef.current, ACTION_COOLDOWN_MS)) {
       return;
     }
-    lastScanRef.current = { qr: qrCode, time: now };
     
     setIsProcessing(true);
     clearError();
@@ -100,6 +104,13 @@ export const ScanPage: React.FC = () => {
     
     if (!worker) {
       setMessage({ type: 'error', text: 'Worker not found. Invalid QR code.' });
+      setIsProcessing(false);
+      return;
+    }
+
+    // Per-worker cooldown
+    const workerLastAction = workerCooldownMap.current.get(worker.id) || 0;
+    if (!isScanAllowed(now, workerLastAction, ACTION_COOLDOWN_MS)) {
       setIsProcessing(false);
       return;
     }
@@ -125,6 +136,8 @@ export const ScanPage: React.FC = () => {
         const success = await otClockOut(worker.id);
         if (success) {
           setMessage({ type: 'success', text: `${worker.full_name} OT clocked out!` });
+          lastActionTimeRef.current = Date.now();
+          workerCooldownMap.current.set(worker.id, Date.now());
           fetchTodayAttendance();
         }
       } else {
@@ -132,6 +145,8 @@ export const ScanPage: React.FC = () => {
         const success = await otClockIn(worker.id);
         if (success) {
           setMessage({ type: 'success', text: `${worker.full_name} OT clocked in!` });
+          lastActionTimeRef.current = Date.now();
+          workerCooldownMap.current.set(worker.id, Date.now());
           fetchTodayAttendance();
         } else {
           // Get the error from the store and show it
@@ -155,6 +170,8 @@ export const ScanPage: React.FC = () => {
       const result = await clockIn(worker.id, user?.id || '');
       if (result) {
         setMessage({ type: 'success', text: `${worker.full_name} clocked in successfully!` });
+        lastActionTimeRef.current = Date.now();
+        workerCooldownMap.current.set(worker.id, Date.now());
       }
     }
 
@@ -167,6 +184,10 @@ export const ScanPage: React.FC = () => {
     
     await clockOut(activeAttendance.id);
     setMessage({ type: 'success', text: `${scannedWorker?.full_name} clocked out successfully!` });
+    lastActionTimeRef.current = Date.now();
+    if (scannedWorker) {
+      workerCooldownMap.current.set(scannedWorker.id, Date.now());
+    }
     setShowQuotaModal(false);
     setScannedWorker(null);
     setActiveAttendance(null);
@@ -178,6 +199,10 @@ export const ScanPage: React.FC = () => {
     
     await markCompletedByQuota(activeAttendance.id, parseInt(bagsCompleted), notes);
     setMessage({ type: 'success', text: `${scannedWorker?.full_name} marked as quota completed!` });
+    lastActionTimeRef.current = Date.now();
+    if (scannedWorker) {
+      workerCooldownMap.current.set(scannedWorker.id, Date.now());
+    }
     setShowQuotaModal(false);
     setScannedWorker(null);
     setActiveAttendance(null);
@@ -192,6 +217,8 @@ export const ScanPage: React.FC = () => {
     const success = await otClockOut(scannedWorker.id);
     if (success) {
       setMessage({ type: 'success', text: `${scannedWorker.full_name} OT clocked out!` });
+      lastActionTimeRef.current = Date.now();
+      workerCooldownMap.current.set(scannedWorker.id, Date.now());
     } else {
       const storeError = useAttendanceStore.getState().error;
       setMessage({ type: 'error', text: storeError || `Failed to clock out OT for ${scannedWorker.full_name}.` });
@@ -291,6 +318,11 @@ export const ScanPage: React.FC = () => {
                           <Badge variant="warning">
                             <Zap className="w-3 h-3 mr-1" />
                             OT
+                          </Badge>
+                        )}
+                        {differenceInMinutes(new Date(), new Date(record.clock_in)) >= 480 && (
+                          <Badge variant="danger">
+                            Overdue
                           </Badge>
                         )}
                         <Badge variant="success">

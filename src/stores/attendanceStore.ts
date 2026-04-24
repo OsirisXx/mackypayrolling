@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { auditLog } from '../lib/auditLog';
 import type { Attendance, AttendanceWithWorker } from '../types/database';
 import { differenceInMinutes, startOfDay, endOfDay } from 'date-fns';
+import { isShiftStale, buildAutoTimeoutPayload, isShiftDurationValid } from '../lib/attendanceHelpers';
 
 // Track whether auto-timeout has already run this session
 let autoTimeoutRanThisSession = false;
@@ -103,37 +104,30 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
 
       // Auto-close stale open shifts from PREVIOUS days only (not today)
       // Runs once per browser session to avoid repeated closures
+      const STALE_SHIFT_THRESHOLD_HOURS = 16;
       if (!autoTimeoutRanThisSession) {
         autoTimeoutRanThisSession = true;
 
+        const now = new Date();
         const todayStart = startOfDay(today);
         const staleRecords = (openData || []).filter(
-          (r) => new Date(r.clock_in) < todayStart
+          (r) => isShiftStale(new Date(r.clock_in), now, todayStart, STALE_SHIFT_THRESHOLD_HOURS)
         );
 
         if (staleRecords.length > 0) {
           for (const stale of staleRecords) {
-            const clockIn = new Date(stale.clock_in);
-            // Set clock_out to 8 hours after clock_in
-            const autoClockOut = new Date(clockIn.getTime() + 8 * 60 * 60 * 1000);
+            try {
+              const clockIn = new Date(stale.clock_in);
+              const hasOpenOT = Boolean(stale.ot_clock_in && !stale.ot_clock_out);
+              const updatePayload = buildAutoTimeoutPayload(clockIn, stale.notes ?? null, hasOpenOT);
 
-            const updatePayload: Record<string, unknown> = {
-              clock_out: autoClockOut.toISOString(),
-              hours_worked: 8,
-              overtime_hours: stale.overtime_hours || 0,
-              status: 'clocked_out',
-              notes: `Auto-timed out (forgot to clock out)${stale.notes ? ' | ' + stale.notes : ''}`,
-            };
-
-            // Close any dangling OT session too
-            if (stale.ot_clock_in && !stale.ot_clock_out) {
-              updatePayload.ot_clock_out = autoClockOut.toISOString();
+              await supabase
+                .from('attendance')
+                .update(updatePayload)
+                .eq('id', stale.id);
+            } catch (err) {
+              console.error(`Auto-timeout failed for shift ${stale.id}:`, err);
             }
-
-            await supabase
-              .from('attendance')
-              .update(updatePayload)
-              .eq('id', stale.id);
           }
 
           // Re-fetch after auto-closing
@@ -162,58 +156,6 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
 
       // Merge and deduplicate
       const allRecords = mergeAttendanceRecords(todayData || [], openData || []);
-
-      // Auto clock-out shifts open for 8h15m+ (today's records)
-      const now = new Date();
-      const autoCloseThresholdMinutes = 8 * 60 + 15; // 8 hours 15 minutes
-      const overdueRecords = allRecords.filter(
-        (r) => r.status === 'clocked_in' && differenceInMinutes(now, new Date(r.clock_in)) >= autoCloseThresholdMinutes
-      );
-
-      if (overdueRecords.length > 0) {
-        for (const overdue of overdueRecords) {
-          const clockIn = new Date(overdue.clock_in);
-          const autoClockOut = new Date(clockIn.getTime() + 8 * 60 * 60 * 1000);
-
-          const updatePayload: Record<string, unknown> = {
-            clock_out: autoClockOut.toISOString(),
-            hours_worked: 8,
-            overtime_hours: overdue.overtime_hours || 0,
-            status: 'clocked_out',
-            notes: `Auto clock-out (8h15m limit)${overdue.notes ? ' | ' + overdue.notes : ''}`,
-          };
-
-          if (overdue.ot_clock_in && !overdue.ot_clock_out) {
-            updatePayload.ot_clock_out = autoClockOut.toISOString();
-          }
-
-          await supabase
-            .from('attendance')
-            .update(updatePayload)
-            .eq('id', overdue.id);
-        }
-
-        // Re-fetch after auto-closing
-        const { data: refreshedToday, error: refreshTodayErr } = await supabase
-          .from('attendance')
-          .select('*, worker:workers(*)')
-          .gte('clock_in', startOfDay(today).toISOString())
-          .lte('clock_in', endOfDay(today).toISOString())
-          .order('clock_in', { ascending: false });
-
-        if (refreshTodayErr) throw refreshTodayErr;
-
-        const { data: refreshedOpen, error: refreshOpenErr } = await supabase
-          .from('attendance')
-          .select('*, worker:workers(*)')
-          .eq('status', 'clocked_in')
-          .order('clock_in', { ascending: false });
-
-        if (refreshOpenErr) throw refreshOpenErr;
-
-        set({ todayRecords: mergeAttendanceRecords(refreshedToday || [], refreshedOpen || []), isLoading: false });
-        return;
-      }
 
       set({ todayRecords: allRecords, isLoading: false });
     } catch (error) {
@@ -276,9 +218,10 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       const clockIn = new Date(record.clock_in);
       const minutesWorked = differenceInMinutes(clockOut, clockIn);
 
-      // Prevent instant clock-out (less than 1 minute since clock-in)
-      if (minutesWorked < 1) {
-        throw new Error('Cannot clock out within 1 minute of clocking in. Please try again later.');
+      // Prevent instant clock-out (less than 60 seconds since clock-in)
+      const MINIMUM_SHIFT_DURATION_SECONDS = 60;
+      if (!isShiftDurationValid(clockIn.getTime(), clockOut.getTime(), MINIMUM_SHIFT_DURATION_SECONDS)) {
+        throw new Error('Cannot clock out within 60 seconds of clocking in. Please try again later.');
       }
 
       const actualHoursWorked = Math.round((minutesWorked / 60) * 100) / 100;
