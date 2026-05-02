@@ -764,18 +764,74 @@ export const PayrollPage: React.FC = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Name', 'Days', 'O.T', 'Daily Rate', 'SSS NOV', 'Total'];
-    const rows = payrollData.map((p) => [
-      p.worker.full_name,
-      p.days,
-      p.overtime.toFixed(1),
-      p.dailyRate,
-      p.sssDeduction.toFixed(2),
-      p.total.toFixed(2),
-    ]);
+    const headers = ['Name', 'Days', 'FRI', 'SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU', 'O.T', 'Rate', 'Bonus', 'SSS', 'Deduction', 'Subtotal', 'Total'];
+    const rows = payrollData.map((item) => {
+      const edited = editedValues[item.worker.id] || { days: null, ot: null, dailyRate: null, bonus: 0, sss: 0, deduction: 0, deductionRemarks: '' };
+      const days = edited.days !== null ? edited.days : item.days;
+      const dailyRate = edited.dailyRate !== null ? edited.dailyRate : item.dailyRate;
+      const otHours = edited.ot !== null ? edited.ot : item.overtime;
+      const hourlyRate = dailyRate / 8;
+      const overtimePay = otHours * hourlyRate;
+      const basePay = days * dailyRate;
+      const subtotal = basePay + overtimePay + edited.bonus;
+      const total = subtotal - edited.sss - edited.deduction;
+      
+      // Format daily breakdown as separate columns with YES/NO
+      const breakdown = item.dailyBreakdown;
+      
+      return [
+        item.worker.full_name,
+        days,
+        breakdown?.fri ? 'YES' : 'NO',
+        breakdown?.sat ? 'YES' : 'NO',
+        breakdown?.sun ? 'YES' : 'NO',
+        breakdown?.mon ? 'YES' : 'NO',
+        breakdown?.tue ? 'YES' : 'NO',
+        breakdown?.wed ? 'YES' : 'NO',
+        breakdown?.thu ? 'YES' : 'NO',
+        otHours.toFixed(1),
+        dailyRate.toFixed(2),
+        edited.bonus.toFixed(2),
+        edited.sss.toFixed(2),
+        edited.deduction.toFixed(2),
+        subtotal.toFixed(2),
+        total.toFixed(2),
+      ];
+    });
 
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    // Calculate totals
+    let subtotalSum = 0;
+    let sssSum = 0;
+    let dedSum = 0;
+    
+    payrollData.forEach((item) => {
+      const edited = editedValues[item.worker.id] || { days: null, ot: null, dailyRate: null, bonus: 0, sss: 0, deduction: 0, deductionRemarks: '' };
+      const days = edited.days !== null ? edited.days : item.days;
+      const dailyRate = edited.dailyRate !== null ? edited.dailyRate : item.dailyRate;
+      const otHours = edited.ot !== null ? edited.ot : item.overtime;
+      const hourlyRate = dailyRate / 8;
+      const overtimePay = otHours * hourlyRate;
+      const basePay = days * dailyRate;
+      const subtotal = basePay + overtimePay + edited.bonus;
+      
+      subtotalSum += subtotal;
+      sssSum += edited.sss;
+      dedSum += edited.deduction;
+    });
+    
+    const grandTotal = subtotalSum - sssSum - dedSum;
+    
+    // Add summary rows
+    const emptyRow = ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+    const subtotalRow = ['', '', '', '', '', '', '', '', '', '', '', '', '', 'SUBTOTAL', subtotalSum.toFixed(2), ''];
+    const sssRow = ['', '', '', '', '', '', '', '', '', '', '', '', '', 'TOTAL SSS', sssSum.toFixed(2), ''];
+    const deductionsRow = ['', '', '', '', '', '', '', '', '', '', '', '', '', 'TOTAL DEDUCTIONS', dedSum.toFixed(2), ''];
+    const grandTotalRow = ['', '', '', '', '', '', '', '', '', '', '', '', '', 'GRAND TOTAL', grandTotal.toFixed(2), ''];
+
+    const csv = [headers, ...rows, emptyRow, subtotalRow, sssRow, deductionsRow, grandTotalRow].map((row) => row.join(',')).join('\n');
+    // Add UTF-8 BOM for proper Excel encoding
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
