@@ -13,6 +13,7 @@ import { formatCurrency } from '../lib/utils';
 const COL_RATIOS = {
   name: 18,
   days: 8,
+  breakdown: 12,
   ot: 8,
   rate: 8,
   bonus: 8,
@@ -30,6 +31,7 @@ const getInitialWidths = (containerWidth: number) => {
   return {
     name: Math.floor((COL_RATIOS.name / total) * containerWidth),
     days: Math.floor((COL_RATIOS.days / total) * containerWidth),
+    breakdown: Math.floor((COL_RATIOS.breakdown / total) * containerWidth),
     ot: Math.floor((COL_RATIOS.ot / total) * containerWidth),
     rate: Math.floor((COL_RATIOS.rate / total) * containerWidth),
     bonus: Math.floor((COL_RATIOS.bonus / total) * containerWidth),
@@ -42,6 +44,16 @@ const getInitialWidths = (containerWidth: number) => {
   };
 };
 
+interface DailyBreakdown {
+  fri: boolean;
+  sat: boolean;
+  sun: boolean;
+  mon: boolean;
+  tue: boolean;
+  wed: boolean;
+  thu: boolean;
+}
+
 interface PayrollData {
   worker: Worker;
   days: number;
@@ -51,6 +63,7 @@ interface PayrollData {
   bonus: number;
   sssDeduction: number;
   total: number;
+  dailyBreakdown?: DailyBreakdown;
 }
 
 export const PayrollPage: React.FC = () => {
@@ -186,19 +199,53 @@ export const PayrollPage: React.FC = () => {
           (a) => a.worker_id === worker.id
         );
 
-        // Calculate days based on total hours worked (8 hours = 1 day)
-        // Sum all hours_worked and divide by 8 to get equivalent days
+        // Calculate days based on unique calendar days worked
+        // Count distinct dates from clock_in timestamps
+        const uniqueDays = new Set(
+          workerAttendance.map((a) => {
+            const date = new Date(a.clock_in);
+            return format(date, 'yyyy-MM-dd'); // Use date-fns format for consistency
+          })
+        );
+        const days = uniqueDays.size;
+        
+        // Keep totalHoursWorked for display purposes (if needed elsewhere)
         const totalHoursWorked = workerAttendance.reduce(
           (sum, a) => sum + (a.hours_worked || 0),
           0
         );
-        const days = Math.floor(totalHoursWorked / 8);
 
         // Sum overtime hours
         const overtime = workerAttendance.reduce(
           (sum, a) => sum + (a.overtime_hours || 0),
           0
         );
+
+        // Calculate which days of the week were worked
+        const dailyBreakdown: DailyBreakdown = {
+          fri: false,
+          sat: false,
+          sun: false,
+          mon: false,
+          tue: false,
+          wed: false,
+          thu: false
+        };
+        
+        workerAttendance.forEach((a) => {
+          const date = new Date(a.clock_in);
+          const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+          
+          switch (dayOfWeek) {
+            case 5: dailyBreakdown.fri = true; break; // Friday
+            case 6: dailyBreakdown.sat = true; break; // Saturday
+            case 0: dailyBreakdown.sun = true; break; // Sunday
+            case 1: dailyBreakdown.mon = true; break; // Monday
+            case 2: dailyBreakdown.tue = true; break; // Tuesday
+            case 3: dailyBreakdown.wed = true; break; // Wednesday
+            case 4: dailyBreakdown.thu = true; break; // Thursday
+          }
+        });
 
         // Use historical rate if available, otherwise fall back to current worker rate
         const historicalRate = workerRateMap.get(worker.id);
@@ -226,6 +273,7 @@ export const PayrollPage: React.FC = () => {
           bonus,
           sssDeduction,
           total,
+          dailyBreakdown,
         };
       });
 
@@ -346,6 +394,7 @@ export const PayrollPage: React.FC = () => {
     printWindow.document.write('<thead><tr>');
     printWindow.document.write('<th class="text-left">Name</th>');
     printWindow.document.write('<th>DAYS</th>');
+    printWindow.document.write('<th style="font-size: 9px;">F S S M T W T</th>');
     printWindow.document.write('<th>O.T</th>');
     printWindow.document.write('<th>Rate</th>');
     printWindow.document.write('<th>Bonus</th>');
@@ -378,6 +427,17 @@ export const PayrollPage: React.FC = () => {
       printWindow.document.write('<tr>');
       printWindow.document.write(`<td class="text-left">${item.worker.full_name}</td>`);
       printWindow.document.write(`<td>${days}</td>`);
+      const breakdown = item.dailyBreakdown;
+      const breakdownStr = [
+        breakdown?.fri ? '✓' : '·',
+        breakdown?.sat ? '✓' : '·',
+        breakdown?.sun ? '✓' : '·',
+        breakdown?.mon ? '✓' : '·',
+        breakdown?.tue ? '✓' : '·',
+        breakdown?.wed ? '✓' : '·',
+        breakdown?.thu ? '✓' : '·'
+      ].join(' ');
+      printWindow.document.write(`<td style="font-size: 9px;">${breakdownStr}</td>`);
       printWindow.document.write(`<td>${otHours > 0 ? otHours.toFixed(0) : '0'}</td>`);
       printWindow.document.write(`<td>${dailyRate.toFixed(0)}</td>`);
       printWindow.document.write(`<td>${edited.bonus > 0 ? edited.bonus.toFixed(0) : '0'}</td>`);
@@ -392,25 +452,25 @@ export const PayrollPage: React.FC = () => {
     const grandTotal = subtotalSum - sssSum - dedSum;
     
     printWindow.document.write('<tr class="total-row">');
-    printWindow.document.write('<td colspan="7" class="text-right">SUBTOTAL</td>');
+    printWindow.document.write('<td colspan="8" class="text-right">SUBTOTAL</td>');
     printWindow.document.write(`<td class="text-right">₱${subtotalSum.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
     printWindow.document.write('<td colspan="2"></td>');
     printWindow.document.write('</tr>');
     
     printWindow.document.write('<tr class="total-row">');
-    printWindow.document.write('<td colspan="7" class="text-right">TOTAL SSS</td>');
+    printWindow.document.write('<td colspan="8" class="text-right">TOTAL SSS</td>');
     printWindow.document.write(`<td class="text-right">-₱${sssSum.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
     printWindow.document.write('<td colspan="2"></td>');
     printWindow.document.write('</tr>');
     
     printWindow.document.write('<tr class="total-row">');
-    printWindow.document.write('<td colspan="7" class="text-right">TOTAL DEDUCTIONS</td>');
+    printWindow.document.write('<td colspan="8" class="text-right">TOTAL DEDUCTIONS</td>');
     printWindow.document.write(`<td class="text-right">-₱${dedSum.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
     printWindow.document.write('<td colspan="2"></td>');
     printWindow.document.write('</tr>');
     
     printWindow.document.write('<tr class="total-row">');
-    printWindow.document.write('<td colspan="7" class="text-right">GRAND TOTAL</td>');
+    printWindow.document.write('<td colspan="8" class="text-right">GRAND TOTAL</td>');
     printWindow.document.write(`<td class="text-right">₱${grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>`);
     printWindow.document.write('<td colspan="2"></td>');
     printWindow.document.write('</tr>');
@@ -802,10 +862,11 @@ export const PayrollPage: React.FC = () => {
         ) : (
           <div ref={containerRef} className="overflow-x-auto">
             {colWidths && (
-            <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed', width: `${colWidths.name + colWidths.days + colWidths.ot + colWidths.rate + colWidths.bonus + colWidths.sss + colWidths.ded + colWidths.subtotal + colWidths.total + colWidths.signature + colWidths.actions}px` }}>
+            <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed', width: `${colWidths.name + colWidths.days + colWidths.breakdown + colWidths.ot + colWidths.rate + colWidths.bonus + colWidths.sss + colWidths.ded + colWidths.subtotal + colWidths.total + colWidths.signature + colWidths.actions}px` }}>
               <colgroup>
                 <col style={{ width: `${colWidths.name}px`, minWidth: `${colWidths.name}px`, maxWidth: `${colWidths.name}px` }} />
                 <col style={{ width: `${colWidths.days}px`, minWidth: `${colWidths.days}px`, maxWidth: `${colWidths.days}px` }} />
+                <col style={{ width: `${colWidths.breakdown}px`, minWidth: `${colWidths.breakdown}px`, maxWidth: `${colWidths.breakdown}px` }} />
                 <col style={{ width: `${colWidths.ot}px`, minWidth: `${colWidths.ot}px`, maxWidth: `${colWidths.ot}px` }} />
                 <col style={{ width: `${colWidths.rate}px`, minWidth: `${colWidths.rate}px`, maxWidth: `${colWidths.rate}px` }} />
                 <col style={{ width: `${colWidths.bonus}px`, minWidth: `${colWidths.bonus}px`, maxWidth: `${colWidths.bonus}px` }} />
@@ -825,6 +886,17 @@ export const PayrollPage: React.FC = () => {
                   <th className="relative px-1 py-2 text-center text-sm font-bold text-gray-700 border-r border-gray-300 select-none">
                     DAYS
                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400" onMouseDown={(e) => handleMouseDown(e, 'days')} />
+                  </th>
+                  <th className="px-1 py-2 text-center text-xs font-bold text-gray-700 border-r border-gray-300">
+                    <div className="flex justify-center gap-0.5">
+                      <span className="w-6">F</span>
+                      <span className="w-6">S</span>
+                      <span className="w-6">S</span>
+                      <span className="w-6">M</span>
+                      <span className="w-6">T</span>
+                      <span className="w-6">W</span>
+                      <span className="w-6">T</span>
+                    </div>
                   </th>
                   <th className="relative px-1 py-2 text-center text-sm font-bold text-gray-700 border-r border-gray-300 select-none">
                     O.T
@@ -903,6 +975,31 @@ export const PayrollPage: React.FC = () => {
                         ) : (
                           <span>{edited.days !== null ? edited.days : item.days}</span>
                         )}
+                      </td>
+                      <td className="px-1 py-1.5 text-xs text-center border-r border-gray-200">
+                        <div className="flex justify-center gap-0.5">
+                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.fri ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.dailyBreakdown?.fri ? '✓' : '·'}
+                          </span>
+                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.sat ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.dailyBreakdown?.sat ? '✓' : '·'}
+                          </span>
+                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.sun ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.dailyBreakdown?.sun ? '✓' : '·'}
+                          </span>
+                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.mon ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.dailyBreakdown?.mon ? '✓' : '·'}
+                          </span>
+                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.tue ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.dailyBreakdown?.tue ? '✓' : '·'}
+                          </span>
+                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.wed ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.dailyBreakdown?.wed ? '✓' : '·'}
+                          </span>
+                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.thu ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.dailyBreakdown?.thu ? '✓' : '·'}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-1 py-1.5 text-sm text-center text-gray-900 border-r border-gray-200">
                         {isAdmin ? (

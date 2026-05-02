@@ -8,6 +8,9 @@ import { isShiftStale, buildAutoTimeoutPayload, isShiftDurationValid } from '../
 // Track whether auto-timeout has already run this session
 let autoTimeoutRanThisSession = false;
 
+// Track which workers have been auto-clocked out this session
+const autoClockOutSessionTracker = new Set<string>();
+
 interface AttendanceState {
   attendanceRecords: AttendanceWithWorker[];
   todayRecords: AttendanceWithWorker[];
@@ -152,6 +155,97 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
           set({ todayRecords: allRecords, isLoading: false });
           return;
         }
+      }
+
+      // Smart auto clock-out with tiered thresholds
+      // Same-day shifts: 8h15m threshold (495 minutes)
+      // Overnight shifts: 10h threshold (600 minutes)
+      // Excludes shifts with open OT sessions
+      const SAME_DAY_THRESHOLD_MINUTES = 495; // 8h15m for same-day shifts
+      const OVERNIGHT_THRESHOLD_MINUTES = 600; // 10h for overnight shifts
+      const now = new Date();
+      const todayStart = startOfDay(today);
+      
+      const recordsToAutoClockOut = (openData || []).filter((r) => {
+        if (r.status !== 'clocked_in') return false;
+        
+        // Skip if already auto-clocked out this session
+        if (autoClockOutSessionTracker.has(r.id)) return false;
+        
+        const clockIn = new Date(r.clock_in);
+        const clockInDay = startOfDay(clockIn);
+        const minutesElapsed = differenceInMinutes(now, clockIn);
+        
+        // Exclude shifts with open OT sessions
+        if (r.ot_clock_in && !r.ot_clock_out) return false;
+        
+        // Same-day shift: 8h15m threshold
+        if (clockInDay.getTime() === todayStart.getTime()) {
+          return minutesElapsed >= SAME_DAY_THRESHOLD_MINUTES;
+        }
+        
+        // Overnight shift (previous day): 10h threshold
+        if (clockInDay.getTime() < todayStart.getTime()) {
+          return minutesElapsed >= OVERNIGHT_THRESHOLD_MINUTES;
+        }
+        
+        return false;
+      });
+      
+      // Auto clock-out eligible records
+      if (recordsToAutoClockOut.length > 0) {
+        for (const record of recordsToAutoClockOut) {
+          try {
+            const clockIn = new Date(record.clock_in);
+            const clockInDay = startOfDay(clockIn);
+            const autoClockOut = new Date(clockIn.getTime() + 8 * 60 * 60 * 1000); // 8h after clock-in
+            
+            const currentNotes = record.notes || '';
+            const isSameDay = clockInDay.getTime() === todayStart.getTime();
+            const auditNote = isSameDay 
+              ? 'Auto-clocked out at 8h15m (same-day shift)'
+              : 'Auto-clocked out at 10h (overnight shift)';
+            const updatedNotes = currentNotes ? `${currentNotes}\n${auditNote}` : auditNote;
+            
+            await supabase
+              .from('attendance')
+              .update({
+                clock_out: autoClockOut.toISOString(),
+                hours_worked: 8,
+                overtime_hours: 0,
+                status: 'clocked_out',
+                notes: updatedNotes
+              })
+              .eq('id', record.id);
+            
+            // Add to session tracker to prevent repeated auto-closures
+            autoClockOutSessionTracker.add(record.id);
+          } catch (err) {
+            console.error(`Smart auto clock-out failed for shift ${record.id}:`, err);
+          }
+        }
+        
+        // Re-fetch after auto-closing
+        const { data: freshOpenData, error: freshOpenError } = await supabase
+          .from('attendance')
+          .select('*, worker:workers(*)')
+          .eq('status', 'clocked_in')
+          .order('clock_in', { ascending: false });
+
+        if (freshOpenError) throw freshOpenError;
+
+        const { data: freshTodayData, error: freshTodayError } = await supabase
+          .from('attendance')
+          .select('*, worker:workers(*)')
+          .gte('clock_in', startOfDay(today).toISOString())
+          .lte('clock_in', endOfDay(today).toISOString())
+          .order('clock_in', { ascending: false });
+
+        if (freshTodayError) throw freshTodayError;
+
+        const allRecords = mergeAttendanceRecords(freshTodayData || [], freshOpenData || []);
+        set({ todayRecords: allRecords, isLoading: false });
+        return;
       }
 
       // Merge and deduplicate
