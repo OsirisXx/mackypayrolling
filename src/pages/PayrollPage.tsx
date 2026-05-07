@@ -13,7 +13,7 @@ import { formatCurrency } from '../lib/utils';
 const COL_RATIOS = {
   name: 18,
   days: 8,
-  breakdown: 12,
+  breakdown: 24,
   ot: 8,
   rate: 8,
   bonus: 8,
@@ -45,13 +45,13 @@ const getInitialWidths = (containerWidth: number) => {
 };
 
 interface DailyBreakdown {
-  fri: boolean;
-  sat: boolean;
-  sun: boolean;
-  mon: boolean;
-  tue: boolean;
-  wed: boolean;
-  thu: boolean;
+  fri: number;
+  sat: number;
+  sun: number;
+  mon: number;
+  tue: number;
+  wed: number;
+  thu: number;
 }
 
 interface PayrollData {
@@ -223,27 +223,28 @@ export const PayrollPage: React.FC = () => {
 
         // Calculate which days of the week were worked
         const dailyBreakdown: DailyBreakdown = {
-          fri: false,
-          sat: false,
-          sun: false,
-          mon: false,
-          tue: false,
-          wed: false,
-          thu: false
+          fri: 0,
+          sat: 0,
+          sun: 0,
+          mon: 0,
+          tue: 0,
+          wed: 0,
+          thu: 0
         };
         
         workerAttendance.forEach((a) => {
           const date = new Date(a.clock_in);
           const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+          const hours = a.hours_worked || 0;
           
           switch (dayOfWeek) {
-            case 5: dailyBreakdown.fri = true; break; // Friday
-            case 6: dailyBreakdown.sat = true; break; // Saturday
-            case 0: dailyBreakdown.sun = true; break; // Sunday
-            case 1: dailyBreakdown.mon = true; break; // Monday
-            case 2: dailyBreakdown.tue = true; break; // Tuesday
-            case 3: dailyBreakdown.wed = true; break; // Wednesday
-            case 4: dailyBreakdown.thu = true; break; // Thursday
+            case 5: dailyBreakdown.fri += hours; break; // Friday
+            case 6: dailyBreakdown.sat += hours; break; // Saturday
+            case 0: dailyBreakdown.sun += hours; break; // Sunday
+            case 1: dailyBreakdown.mon += hours; break; // Monday
+            case 2: dailyBreakdown.tue += hours; break; // Tuesday
+            case 3: dailyBreakdown.wed += hours; break; // Wednesday
+            case 4: dailyBreakdown.thu += hours; break; // Thursday
           }
         });
 
@@ -394,7 +395,7 @@ export const PayrollPage: React.FC = () => {
     printWindow.document.write('<thead><tr>');
     printWindow.document.write('<th class="text-left">Name</th>');
     printWindow.document.write('<th>DAYS</th>');
-    printWindow.document.write('<th style="font-size: 9px;">F S S M T W T</th>');
+    printWindow.document.write('<th style="font-size: 9px;">FRI SAT SUN MON TUE WENS THUR</th>');
     printWindow.document.write('<th>O.T</th>');
     printWindow.document.write('<th>Rate</th>');
     printWindow.document.write('<th>Bonus</th>');
@@ -428,14 +429,15 @@ export const PayrollPage: React.FC = () => {
       printWindow.document.write(`<td class="text-left">${item.worker.full_name}</td>`);
       printWindow.document.write(`<td>${days}</td>`);
       const breakdown = item.dailyBreakdown;
+      const fmtHrs = (h: number) => h > 0 ? (Number.isInteger(h) ? h.toString() : h.toFixed(1)) : '-';
       const breakdownStr = [
-        breakdown?.fri ? '✓' : '·',
-        breakdown?.sat ? '✓' : '·',
-        breakdown?.sun ? '✓' : '·',
-        breakdown?.mon ? '✓' : '·',
-        breakdown?.tue ? '✓' : '·',
-        breakdown?.wed ? '✓' : '·',
-        breakdown?.thu ? '✓' : '·'
+        fmtHrs(breakdown?.fri || 0),
+        fmtHrs(breakdown?.sat || 0),
+        fmtHrs(breakdown?.sun || 0),
+        fmtHrs(breakdown?.mon || 0),
+        fmtHrs(breakdown?.tue || 0),
+        fmtHrs(breakdown?.wed || 0),
+        fmtHrs(breakdown?.thu || 0)
       ].join(' ');
       printWindow.document.write(`<td style="font-size: 9px;">${breakdownStr}</td>`);
       printWindow.document.write(`<td>${otHours > 0 ? otHours.toFixed(0) : '0'}</td>`);
@@ -764,7 +766,7 @@ export const PayrollPage: React.FC = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Name', 'Days', 'FRI', 'SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU', 'O.T', 'Rate', 'Bonus', 'SSS', 'Deduction', 'Subtotal', 'Total'];
+    const headers = ['Name', 'Days', 'FRI', 'SAT', 'SUN', 'MON', 'TUE', 'WENS', 'THUR', 'O.T', 'Rate', 'Bonus', 'SSS', 'Deduction', 'Subtotal', 'Total'];
     const rows = payrollData.map((item) => {
       const edited = editedValues[item.worker.id] || { days: null, ot: null, dailyRate: null, bonus: 0, sss: 0, deduction: 0, deductionRemarks: '' };
       const days = edited.days !== null ? edited.days : item.days;
@@ -776,19 +778,20 @@ export const PayrollPage: React.FC = () => {
       const subtotal = basePay + overtimePay + edited.bonus;
       const total = subtotal - edited.sss - edited.deduction;
       
-      // Format daily breakdown as separate columns with YES/NO
+      // Format daily breakdown as separate columns with hours
       const breakdown = item.dailyBreakdown;
+      const fmtHrs = (h: number) => h > 0 ? (Number.isInteger(h) ? h.toString() : h.toFixed(1)) : '0';
       
       return [
         item.worker.full_name,
         days,
-        breakdown?.fri ? 'YES' : 'NO',
-        breakdown?.sat ? 'YES' : 'NO',
-        breakdown?.sun ? 'YES' : 'NO',
-        breakdown?.mon ? 'YES' : 'NO',
-        breakdown?.tue ? 'YES' : 'NO',
-        breakdown?.wed ? 'YES' : 'NO',
-        breakdown?.thu ? 'YES' : 'NO',
+        fmtHrs(breakdown?.fri || 0),
+        fmtHrs(breakdown?.sat || 0),
+        fmtHrs(breakdown?.sun || 0),
+        fmtHrs(breakdown?.mon || 0),
+        fmtHrs(breakdown?.tue || 0),
+        fmtHrs(breakdown?.wed || 0),
+        fmtHrs(breakdown?.thu || 0),
         otHours.toFixed(1),
         dailyRate.toFixed(2),
         edited.bonus.toFixed(2),
@@ -921,8 +924,8 @@ export const PayrollPage: React.FC = () => {
             <table ref={tableRef} className="border-collapse" style={{ tableLayout: 'fixed', width: `${colWidths.name + colWidths.days + colWidths.breakdown + colWidths.ot + colWidths.rate + colWidths.bonus + colWidths.sss + colWidths.ded + colWidths.subtotal + colWidths.total + colWidths.signature + colWidths.actions}px` }}>
               <colgroup>
                 <col style={{ width: `${colWidths.name}px`, minWidth: `${colWidths.name}px`, maxWidth: `${colWidths.name}px` }} />
-                <col style={{ width: `${colWidths.days}px`, minWidth: `${colWidths.days}px`, maxWidth: `${colWidths.days}px` }} />
                 <col style={{ width: `${colWidths.breakdown}px`, minWidth: `${colWidths.breakdown}px`, maxWidth: `${colWidths.breakdown}px` }} />
+                <col style={{ width: `${colWidths.days}px`, minWidth: `${colWidths.days}px`, maxWidth: `${colWidths.days}px` }} />
                 <col style={{ width: `${colWidths.ot}px`, minWidth: `${colWidths.ot}px`, maxWidth: `${colWidths.ot}px` }} />
                 <col style={{ width: `${colWidths.rate}px`, minWidth: `${colWidths.rate}px`, maxWidth: `${colWidths.rate}px` }} />
                 <col style={{ width: `${colWidths.bonus}px`, minWidth: `${colWidths.bonus}px`, maxWidth: `${colWidths.bonus}px` }} />
@@ -939,20 +942,20 @@ export const PayrollPage: React.FC = () => {
                     Name
                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400" onMouseDown={(e) => handleMouseDown(e, 'name')} />
                   </th>
+                  <th className="px-1 py-2 text-center text-xs font-bold text-gray-700 border-r border-gray-300">
+                    <div className="flex justify-center gap-1">
+                      <span className="w-9">FRI</span>
+                      <span className="w-9">SAT</span>
+                      <span className="w-9">SUN</span>
+                      <span className="w-9">MON</span>
+                      <span className="w-9">TUE</span>
+                      <span className="w-10">WENS</span>
+                      <span className="w-10">THUR</span>
+                    </div>
+                  </th>
                   <th className="relative px-1 py-2 text-center text-sm font-bold text-gray-700 border-r border-gray-300 select-none">
                     DAYS
                     <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400" onMouseDown={(e) => handleMouseDown(e, 'days')} />
-                  </th>
-                  <th className="px-1 py-2 text-center text-xs font-bold text-gray-700 border-r border-gray-300">
-                    <div className="flex justify-center gap-0.5">
-                      <span className="w-6">F</span>
-                      <span className="w-6">S</span>
-                      <span className="w-6">S</span>
-                      <span className="w-6">M</span>
-                      <span className="w-6">T</span>
-                      <span className="w-6">W</span>
-                      <span className="w-6">T</span>
-                    </div>
                   </th>
                   <th className="relative px-1 py-2 text-center text-sm font-bold text-gray-700 border-r border-gray-300 select-none">
                     O.T
@@ -1019,6 +1022,25 @@ export const PayrollPage: React.FC = () => {
                       <td className="px-2 py-1.5 text-sm text-gray-900 border-r border-gray-200 truncate">
                         {item.worker.full_name}
                       </td>
+                      <td className="px-1 py-1.5 text-xs text-center border-r border-gray-200">
+                        <div className="flex justify-center gap-1">
+                          {(['fri', 'sat', 'sun', 'mon', 'tue', 'wed', 'thu'] as const).map((day) => {
+                            const hours = item.dailyBreakdown?.[day] || 0;
+                            return (
+                              <span
+                                key={day}
+                                className={`${day === 'wed' || day === 'thu' ? 'w-10' : 'w-9'} h-6 flex items-center justify-center rounded text-xs ${
+                                  hours > 0
+                                    ? 'bg-green-500 text-white font-bold'
+                                    : 'bg-gray-100 text-gray-400'
+                                }`}
+                              >
+                                {hours > 0 ? (Number.isInteger(hours) ? hours.toString() : hours.toFixed(1)) : '-'}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </td>
                       <td className="px-1 py-1.5 text-sm text-center text-gray-900 border-r border-gray-200">
                         {isAdmin ? (
                           <input
@@ -1031,31 +1053,6 @@ export const PayrollPage: React.FC = () => {
                         ) : (
                           <span>{edited.days !== null ? edited.days : item.days}</span>
                         )}
-                      </td>
-                      <td className="px-1 py-1.5 text-xs text-center border-r border-gray-200">
-                        <div className="flex justify-center gap-0.5">
-                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.fri ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
-                            {item.dailyBreakdown?.fri ? '✓' : '·'}
-                          </span>
-                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.sat ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
-                            {item.dailyBreakdown?.sat ? '✓' : '·'}
-                          </span>
-                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.sun ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
-                            {item.dailyBreakdown?.sun ? '✓' : '·'}
-                          </span>
-                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.mon ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
-                            {item.dailyBreakdown?.mon ? '✓' : '·'}
-                          </span>
-                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.tue ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
-                            {item.dailyBreakdown?.tue ? '✓' : '·'}
-                          </span>
-                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.wed ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
-                            {item.dailyBreakdown?.wed ? '✓' : '·'}
-                          </span>
-                          <span className={`w-6 h-6 flex items-center justify-center rounded ${item.dailyBreakdown?.thu ? 'bg-green-500 text-white font-bold' : 'bg-gray-100 text-gray-300'}`}>
-                            {item.dailyBreakdown?.thu ? '✓' : '·'}
-                          </span>
-                        </div>
                       </td>
                       <td className="px-1 py-1.5 text-sm text-center text-gray-900 border-r border-gray-200">
                         {isAdmin ? (
