@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
-import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Edit2, Search, User, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, Edit2, Search, Trash2, User, X, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import { DeleteConfirmationDialog } from '../components/DeleteConfirmationDialog';
 import { useAttendanceStore } from '../stores/attendanceStore';
 import { useAuthStore } from '../stores/authStore';
 import { useWorkerStore } from '../stores/workerStore';
@@ -15,7 +16,7 @@ import type { AttendanceWithWorker } from '../types/database';
 
 export const AttendancePage: React.FC = () => {
   const { user } = useAuthStore();
-  const { attendanceRecords, fetchAttendance, isLoading } = useAttendanceStore();
+  const { attendanceRecords, fetchAttendance, softDeleteAttendance, isLoading } = useAttendanceStore();
   const { workers, fetchWorkers } = useWorkerStore();
   const [dateRange, setDateRange] = useState({
     start: startOfWeek(new Date(), { weekStartsOn: 1 }),
@@ -35,6 +36,13 @@ export const AttendancePage: React.FC = () => {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [workerAttendance, setWorkerAttendance] = useState<AttendanceWithWorker[]>([]);
   const [isLoadingWorkerAttendance, setIsLoadingWorkerAttendance] = useState(false);
+
+  // Soft delete state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<AttendanceWithWorker | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -93,6 +101,7 @@ export const AttendancePage: React.FC = () => {
           worker:workers(*)
         `)
         .eq('worker_id', workerId)
+        .is('deleted_at', null)
         .order('clock_in', { ascending: false });
       
       if (error) throw error;
@@ -109,6 +118,46 @@ export const AttendancePage: React.FC = () => {
     setSelectedWorkerId(null);
     setWorkerAttendance([]);
     fetchAttendance(dateRange.start, dateRange.end);
+  };
+
+  // --- Soft delete handlers ---
+  const handleDeleteRecord = (record: AttendanceWithWorker) => {
+    setRecordToDelete(record);
+    setShowDeleteDialog(true);
+    setErrorMessage('');
+  };
+
+  const handleDeleteConfirm = async (reason: string) => {
+    if (!recordToDelete) return;
+    try {
+      setIsDeleting(true);
+      await softDeleteAttendance(recordToDelete.id, reason);
+
+      // Success feedback
+      setSuccessMessage(`Attendance record for ${recordToDelete.worker?.full_name || 'worker'} deleted successfully`);
+      setRecordToDelete(null);
+      setShowDeleteDialog(false);
+
+      // Also refresh worker-specific view if active
+      if (selectedWorkerId) {
+        handleWorkerSelect(selectedWorkerId);
+      }
+
+      // Auto-dismiss after 4s
+      setTimeout(() => setSuccessMessage(''), 4000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete record';
+      setErrorMessage(message);
+      // Keep dialog open for retry
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteDialog(false);
+    setRecordToDelete(null);
+    setErrorMessage('');
   };
 
   const handleEditRecord = (record: AttendanceWithWorker) => {
@@ -216,6 +265,26 @@ export const AttendancePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Success / Error Messages */}
+      {successMessage && (
+        <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 animate-in fade-in">
+          <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+          <p className="text-sm text-green-800 flex-1">{successMessage}</p>
+          <button onClick={() => setSuccessMessage('')} className="text-green-400 hover:text-green-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      {errorMessage && !showDeleteDialog && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-800 flex-1">{errorMessage}</p>
+          <button onClick={() => setErrorMessage('')} className="text-red-400 hover:text-red-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Attendance Records</h1>
@@ -368,13 +437,23 @@ export const AttendancePage: React.FC = () => {
                       </td>
                       {isAdmin && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => handleEditRecord(record)}
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            Edit
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleEditRecord(record)}
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRecord(record)}
+                              className="text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors"
+                              title="Soft delete this attendance record"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -587,6 +666,15 @@ export const AttendancePage: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={showDeleteDialog}
+        record={recordToDelete}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };

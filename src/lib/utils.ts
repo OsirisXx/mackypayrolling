@@ -43,3 +43,42 @@ export function formatHours(hours: number): string {
   const m = Math.round((hours - h) * 60);
   return `${h}h ${m}m`;
 }
+
+/**
+ * Validation result for deletion reason
+ */
+export interface DeletionReasonValidationResult {
+  valid: boolean;
+  error?: string;
+}
+
+/**
+ * Validates a deletion reason for attendance records
+ * 
+ * Requirements:
+ * - Minimum length: 10 characters (after trimming)
+ * - Maximum length: 500 characters (after trimming)
+ * - Whitespace is trimmed before validation
+ * 
+ * @param reason - The deletion reason to validate
+ * @returns Validation result with error message if invalid
+ */
+export function validateDeletionReason(reason: string): DeletionReasonValidationResult {
+  const trimmed = reason.trim();
+  
+  if (trimmed.length < 10) {
+    return {
+      valid: false,
+      error: 'Deletion reason must be at least 10 characters'
+    };
+  }
+  
+  if (trimmed.length > 500) {
+    return {
+      valid: false,
+      error: 'Deletion reason must not exceed 500 characters'
+    };
+  }
+  
+  return { valid: true };
+}

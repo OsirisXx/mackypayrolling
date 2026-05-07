@@ -193,6 +193,31 @@ class AuditLogger {
     });
   }
 
+  async logAttendanceDelete(
+    workerId: string,
+    workerName: string,
+    clockIn: string,
+    clockOut: string | null,
+    reason: string
+  ): Promise<void> {
+    await this.log({
+      action: 'DELETE',
+      category: 'ATTENDANCE',
+      description: `Deleted attendance record for ${workerName}: ${reason}`,
+      entityType: 'attendance',
+      entityId: workerId,
+      entityName: workerName,
+      oldValues: {
+        clock_in: clockIn,
+        clock_out: clockOut
+      },
+      metadata: {
+        deletion_reason: reason
+      },
+      severity: 'WARNING'
+    });
+  }
+
   async logPayrollAdjustment(
     workerId: string, 
     workerName: string, 

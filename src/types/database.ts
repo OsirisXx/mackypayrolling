@@ -90,6 +90,9 @@ export interface Database {
           scanned_by: string;
           created_at: string;
           updated_at: string;
+          deleted_at: string | null;
+          deleted_by: string | null;
+          deletion_reason: string | null;
         };
         Insert: {
           id?: string;
@@ -107,6 +110,9 @@ export interface Database {
           scanned_by: string;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+          deletion_reason?: string | null;
         };
         Update: {
           id?: string;
@@ -124,6 +130,9 @@ export interface Database {
           scanned_by?: string;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+          deletion_reason?: string | null;
         };
       };
       payroll: {

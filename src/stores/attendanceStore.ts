@@ -24,6 +24,7 @@ interface AttendanceState {
   otClockIn: (workerId: string) => Promise<boolean>;
   otClockOut: (workerId: string) => Promise<boolean>;
   getActiveAttendance: (workerId: string) => AttendanceWithWorker | undefined;
+  softDeleteAttendance: (attendanceId: string, reason: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -56,6 +57,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
           *,
           worker:workers(*)
         `)
+        .is('deleted_at', null)
         .order('clock_in', { ascending: false });
 
       if (startDate) {
@@ -89,6 +91,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
         `)
         .gte('clock_in', startOfDay(today).toISOString())
         .lte('clock_in', endOfDay(today).toISOString())
+        .is('deleted_at', null)
         .order('clock_in', { ascending: false });
 
       if (todayError) throw todayError;
@@ -101,6 +104,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
           worker:workers(*)
         `)
         .eq('status', 'clocked_in')
+        .is('deleted_at', null)
         .order('clock_in', { ascending: false });
 
       if (openError) throw openError;
@@ -138,6 +142,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
             .from('attendance')
             .select('*, worker:workers(*)')
             .eq('status', 'clocked_in')
+            .is('deleted_at', null)
             .order('clock_in', { ascending: false });
 
           if (freshOpenError) throw freshOpenError;
@@ -147,6 +152,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
             .select('*, worker:workers(*)')
             .gte('clock_in', startOfDay(today).toISOString())
             .lte('clock_in', endOfDay(today).toISOString())
+            .is('deleted_at', null)
             .order('clock_in', { ascending: false });
 
           if (freshTodayError) throw freshTodayError;
@@ -230,6 +236,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
           .from('attendance')
           .select('*, worker:workers(*)')
           .eq('status', 'clocked_in')
+          .is('deleted_at', null)
           .order('clock_in', { ascending: false });
 
         if (freshOpenError) throw freshOpenError;
@@ -239,6 +246,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
           .select('*, worker:workers(*)')
           .gte('clock_in', startOfDay(today).toISOString())
           .lte('clock_in', endOfDay(today).toISOString())
+          .is('deleted_at', null)
           .order('clock_in', { ascending: false });
 
         if (freshTodayError) throw freshTodayError;
@@ -516,6 +524,69 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     return get().todayRecords.find(
       (r) => r.worker_id === workerId && r.status === 'clocked_in'
     );
+  },
+
+  softDeleteAttendance: async (attendanceId: string, reason: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Fetch existing attendance record with worker details
+      const { data: existingRecord, error: fetchError } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          worker:workers(*)
+        `)
+        .eq('id', attendanceId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!existingRecord) {
+        throw new Error('Attendance record not found');
+      }
+
+      // Check if record is already deleted
+      if (existingRecord.deleted_at) {
+        throw new Error('This record has already been deleted');
+      }
+
+      // Update record with soft delete fields
+      const { error: updateError } = await supabase
+        .from('attendance')
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user.id,
+          deletion_reason: reason.trim()
+        })
+        .eq('id', attendanceId);
+
+      if (updateError) throw updateError;
+
+      // Log to audit system
+      await auditLog.logAttendanceDelete(
+        existingRecord.worker_id,
+        existingRecord.worker?.full_name || 'Unknown',
+        existingRecord.clock_in,
+        existingRecord.clock_out,
+        reason.trim()
+      );
+
+      // Remove deleted record from state
+      set((state) => ({
+        todayRecords: state.todayRecords.filter((r) => r.id !== attendanceId),
+        attendanceRecords: state.attendanceRecords.filter((r) => r.id !== attendanceId),
+        isLoading: false
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'An error occurred';
+      set({ error: message, isLoading: false });
+      throw error;
+    }
   },
 
   clearError: () => set({ error: null }),

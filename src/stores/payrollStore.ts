@@ -60,7 +60,8 @@ export const usePayrollStore = create<PayrollState>((set, get) => ({
         .select('*')
         .gte('clock_in', startOfDay(periodStart).toISOString())
         .lte('clock_in', endOfDay(periodEnd).toISOString())
-        .in('status', ['clocked_out', 'completed_quota']);
+        .in('status', ['clocked_out', 'completed_quota'])
+        .is('deleted_at', null);
 
       if (attendanceError) throw attendanceError;
 
