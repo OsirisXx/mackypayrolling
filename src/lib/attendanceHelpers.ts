@@ -1,4 +1,4 @@
-import { differenceInHours } from 'date-fns';
+import { differenceInHours, differenceInMinutes } from 'date-fns';
 
 /**
  * Determines whether a QR scan decode event should fire the onScan callback.
@@ -74,7 +74,7 @@ export function isShiftStale(
  *
  * - clock_out is set to clockIn + 8 hours
  * - hours_worked is 8
- * - overtime_hours is 0
+ * - overtime_hours is calculated from otClockIn if an OT session was open, otherwise 0
  * - status is 'clocked_out'
  * - notes contains "Auto-timed out (forgot to clock out)" with existing notes appended
  * - ot_clock_out is set (same as clock_out) only when hasOpenOT is true
@@ -83,13 +83,21 @@ export function buildAutoTimeoutPayload(
   clockIn: Date,
   existingNotes: string | null,
   hasOpenOT: boolean,
+  otClockIn?: Date | null,
 ): Record<string, unknown> {
   const clockOut = new Date(clockIn.getTime() + 8 * 60 * 60 * 1000);
+
+  // Calculate OT hours if an OT session was open
+  let overtimeHours = 0;
+  if (hasOpenOT && otClockIn) {
+    const otMinutes = differenceInMinutes(clockOut, otClockIn);
+    overtimeHours = Math.max(0, Math.round((otMinutes / 60) * 100) / 100);
+  }
 
   const payload: Record<string, unknown> = {
     clock_out: clockOut.toISOString(),
     hours_worked: 8,
-    overtime_hours: 0,
+    overtime_hours: overtimeHours,
     status: 'clocked_out',
     notes: `Auto-timed out (forgot to clock out)${existingNotes ? ' | ' + existingNotes : ''}`,
   };

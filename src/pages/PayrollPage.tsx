@@ -163,7 +163,8 @@ export const PayrollPage: React.FC = () => {
         .select('*')
         .gte('clock_in', startStr)
         .lt('clock_in', endStr)
-        .in('status', ['clocked_out', 'completed_quota']);
+        .in('status', ['clocked_out', 'completed_quota'])
+        .is('deleted_at', null);
 
       if (attendanceError) throw attendanceError;
 

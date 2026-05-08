@@ -126,7 +126,8 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
             try {
               const clockIn = new Date(stale.clock_in);
               const hasOpenOT = Boolean(stale.ot_clock_in && !stale.ot_clock_out);
-              const updatePayload = buildAutoTimeoutPayload(clockIn, stale.notes ?? null, hasOpenOT);
+              const otClockIn = stale.ot_clock_in ? new Date(stale.ot_clock_in) : null;
+              const updatePayload = buildAutoTimeoutPayload(clockIn, stale.notes ?? null, hasOpenOT, otClockIn);
 
               await supabase
                 .from('attendance')
@@ -164,10 +165,11 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       }
 
       // Smart auto clock-out with tiered thresholds
-      // Same-day shifts: 8h15m threshold (495 minutes)
+      // Same-day shifts: 16h threshold (960 minutes) - high threshold to only catch "forgot to clock out"
+      // Workers who exceed 8h should scan for OT, not get auto-clocked out
       // Overnight shifts: 10h threshold (600 minutes)
       // Excludes shifts with open OT sessions
-      const SAME_DAY_THRESHOLD_MINUTES = 495; // 8h15m for same-day shifts
+      const SAME_DAY_THRESHOLD_MINUTES = 960; // 16h for same-day shifts (only catches forgotten clock-outs)
       const OVERNIGHT_THRESHOLD_MINUTES = 600; // 10h for overnight shifts
       const now = new Date();
       const todayStart = startOfDay(today);
@@ -205,11 +207,26 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
             const clockIn = new Date(record.clock_in);
             const clockInDay = startOfDay(clockIn);
             const autoClockOut = new Date(clockIn.getTime() + 8 * 60 * 60 * 1000); // 8h after clock-in
+            const minutesElapsed = differenceInMinutes(now, clockIn);
+            
+            // Calculate actual overtime: time past 8 hours
+            const otMinutesWorked = Math.max(0, minutesElapsed - 480); // minutes past 8h
+            const overtimeHours = Math.round((otMinutesWorked / 60) * 100) / 100;
+            
+            // If there was an open OT session, calculate OT from ot_clock_in instead
+            let finalOT = overtimeHours;
+            const updatePayload: Record<string, unknown> = {};
+            if (record.ot_clock_in && !record.ot_clock_out) {
+              const otClockIn = new Date(record.ot_clock_in);
+              const otSessionMinutes = differenceInMinutes(now, otClockIn);
+              finalOT = Math.max(0, Math.round((otSessionMinutes / 60) * 100) / 100);
+              updatePayload.ot_clock_out = now.toISOString();
+            }
             
             const currentNotes = record.notes || '';
             const isSameDay = clockInDay.getTime() === todayStart.getTime();
             const auditNote = isSameDay 
-              ? 'Auto-clocked out at 8h15m (same-day shift)'
+              ? 'Auto-clocked out at 16h (same-day shift - forgot to clock out)'
               : 'Auto-clocked out at 10h (overnight shift)';
             const updatedNotes = currentNotes ? `${currentNotes}\n${auditNote}` : auditNote;
             
@@ -218,9 +235,10 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
               .update({
                 clock_out: autoClockOut.toISOString(),
                 hours_worked: 8,
-                overtime_hours: 0,
+                overtime_hours: finalOT,
                 status: 'clocked_out',
-                notes: updatedNotes
+                notes: updatedNotes,
+                ...updatePayload
               })
               .eq('id', record.id);
             
@@ -331,8 +349,18 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       const gracedHours = actualHoursWorked >= 7.75 ? Math.max(actualHoursWorked, 8) : actualHoursWorked;
       // Cap regular hours at 8 max - OT requires manager approval via OT scan
       const hoursWorked = Math.min(gracedHours, 8);
-      // OT is NOT automatically calculated - manager must use OT scan mode
-      const overtimeHours = record.overtime_hours || 0;
+      
+      // Finalize any open OT session: if ot_clock_in is set but ot_clock_out is not,
+      // calculate OT hours from ot_clock_in to now
+      let overtimeHours = record.overtime_hours || 0;
+      const otUpdate: Record<string, unknown> = {};
+      if (record.ot_clock_in && !record.ot_clock_out) {
+        const otClockIn = new Date(record.ot_clock_in);
+        const otMinutes = differenceInMinutes(clockOut, otClockIn);
+        const otHours = Math.max(0, Math.round((otMinutes / 60) * 100) / 100);
+        overtimeHours = (record.overtime_hours || 0) + otHours;
+        otUpdate.ot_clock_out = clockOut.toISOString();
+      }
 
       const { data, error } = await supabase
         .from('attendance')
@@ -341,6 +369,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
           hours_worked: hoursWorked,
           overtime_hours: overtimeHours,
           status: 'clocked_out',
+          ...otUpdate,
         })
         .eq('id', attendanceId)
         .select(`
