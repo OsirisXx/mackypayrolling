@@ -355,11 +355,19 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       let overtimeHours = record.overtime_hours || 0;
       const otUpdate: Record<string, unknown> = {};
       if (record.ot_clock_in && !record.ot_clock_out) {
+        // OT session still open — close it and calculate hours
         const otClockIn = new Date(record.ot_clock_in);
         const otMinutes = differenceInMinutes(clockOut, otClockIn);
         const otHours = Math.max(0, Math.round((otMinutes / 60) * 100) / 100);
         overtimeHours = (record.overtime_hours || 0) + otHours;
         otUpdate.ot_clock_out = clockOut.toISOString();
+      } else if (record.ot_clock_in && record.ot_clock_out) {
+        // OT session already closed — recalculate from stored timestamps
+        // to prevent overwriting overtime_hours with 0
+        const otClockIn = new Date(record.ot_clock_in);
+        const otClockOut = new Date(record.ot_clock_out);
+        const otMinutes = differenceInMinutes(otClockOut, otClockIn);
+        overtimeHours = Math.max(0, Math.round((otMinutes / 60) * 100) / 100);
       }
 
       const { data, error } = await supabase

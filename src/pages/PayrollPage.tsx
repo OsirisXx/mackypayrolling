@@ -153,16 +153,19 @@ export const PayrollPage: React.FC = () => {
 
       if (workersError) throw workersError;
 
-      // Fetch attendance for exact period using date strings (avoids timezone issues)
-      const startStr = format(dateRange.start, 'yyyy-MM-dd');
-      const endDate = new Date(dateRange.end);
-      endDate.setDate(endDate.getDate() + 1);
-      const endStr = format(endDate, 'yyyy-MM-dd');
+      // Fetch attendance using local timezone boundaries
+      // Convert local midnight to UTC for accurate querying (e.g., May 1 00:00 UTC+8 = Apr 30 16:00 UTC)
+      const periodStartStr = format(dateRange.start, 'yyyy-MM-dd');
+      const periodEndDate = new Date(dateRange.end);
+      periodEndDate.setDate(periodEndDate.getDate() + 1);
+      const periodEndStr = format(periodEndDate, 'yyyy-MM-dd');
+      const queryStart = new Date(periodStartStr + 'T00:00:00'); // local midnight start
+      const queryEnd = new Date(periodEndStr + 'T00:00:00');     // local midnight end+1
       const { data: attendance, error: attendanceError } = await supabase
         .from('attendance')
         .select('*')
-        .gte('clock_in', startStr)
-        .lt('clock_in', endStr)
+        .gte('clock_in', queryStart.toISOString())
+        .lt('clock_in', queryEnd.toISOString())
         .in('status', ['clocked_out', 'completed_quota'])
         .is('deleted_at', null);
 
@@ -173,7 +176,7 @@ export const PayrollPage: React.FC = () => {
       const { data: rateHistory, error: rateError } = await supabase
         .from('worker_rates')
         .select('*')
-        .lte('effective_date', startStr)
+        .lte('effective_date', periodStartStr)
         .order('effective_date', { ascending: false });
 
       if (rateError) {
@@ -201,9 +204,17 @@ export const PayrollPage: React.FC = () => {
         );
 
         // Calculate days based on unique calendar days worked
-        // Count distinct dates from clock_in timestamps
+        // Count distinct LOCAL dates from clock_in timestamps
+        // Filter out records whose local date falls outside the selected period
+        // (the query uses UTC dates, but local timezone can shift records to the next day)
+        const periodStartStr = format(dateRange.start, 'yyyy-MM-dd');
+        const periodEndStr = format(dateRange.end, 'yyyy-MM-dd');
+        const filteredAttendance = workerAttendance.filter((a) => {
+          const localDate = format(new Date(a.clock_in), 'yyyy-MM-dd');
+          return localDate >= periodStartStr && localDate <= periodEndStr;
+        });
         const uniqueDays = new Set(
-          workerAttendance.map((a) => {
+          filteredAttendance.map((a) => {
             const date = new Date(a.clock_in);
             return format(date, 'yyyy-MM-dd'); // Use date-fns format for consistency
           })
@@ -211,13 +222,13 @@ export const PayrollPage: React.FC = () => {
         const days = uniqueDays.size;
         
         // Keep totalHoursWorked for display purposes (if needed elsewhere)
-        const totalHoursWorked = workerAttendance.reduce(
+        const totalHoursWorked = filteredAttendance.reduce(
           (sum, a) => sum + (a.hours_worked || 0),
           0
         );
 
         // Sum overtime hours
-        const overtime = workerAttendance.reduce(
+        const overtime = filteredAttendance.reduce(
           (sum, a) => sum + (a.overtime_hours || 0),
           0
         );
@@ -233,7 +244,7 @@ export const PayrollPage: React.FC = () => {
           thu: 0
         };
         
-        workerAttendance.forEach((a) => {
+        filteredAttendance.forEach((a) => {
           const date = new Date(a.clock_in);
           const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
           const hours = a.hours_worked || 0;
