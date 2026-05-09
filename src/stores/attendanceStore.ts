@@ -165,11 +165,10 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       }
 
       // Smart auto clock-out with tiered thresholds
-      // Same-day shifts: 16h threshold (960 minutes) - high threshold to only catch "forgot to clock out"
-      // Workers who exceed 8h should scan for OT, not get auto-clocked out
+      // Same-day shifts: 9h15m threshold (555 minutes) - gives workers 1h15m after 8h shift to scan OT
       // Overnight shifts: 10h threshold (600 minutes)
-      // Excludes shifts with open OT sessions
-      const SAME_DAY_THRESHOLD_MINUTES = 960; // 16h for same-day shifts (only catches forgotten clock-outs)
+      // Excludes shifts with open OT sessions (workers actively doing OT)
+      const SAME_DAY_THRESHOLD_MINUTES = 555; // 9h15m = 8h shift + 1h15m grace period for OT scan
       const OVERNIGHT_THRESHOLD_MINUTES = 600; // 10h for overnight shifts
       const now = new Date();
       const todayStart = startOfDay(today);
@@ -184,10 +183,10 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
         const clockInDay = startOfDay(clockIn);
         const minutesElapsed = differenceInMinutes(now, clockIn);
         
-        // Exclude shifts with open OT sessions
+        // Exclude shifts with open OT sessions (worker is actively doing OT)
         if (r.ot_clock_in && !r.ot_clock_out) return false;
         
-        // Same-day shift: 8h15m threshold
+        // Same-day shift: 9h15m threshold
         if (clockInDay.getTime() === todayStart.getTime()) {
           return minutesElapsed >= SAME_DAY_THRESHOLD_MINUTES;
         }
@@ -207,26 +206,18 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
             const clockIn = new Date(record.clock_in);
             const clockInDay = startOfDay(clockIn);
             const autoClockOut = new Date(clockIn.getTime() + 8 * 60 * 60 * 1000); // 8h after clock-in
-            const minutesElapsed = differenceInMinutes(now, clockIn);
             
-            // Calculate actual overtime: time past 8 hours
-            const otMinutesWorked = Math.max(0, minutesElapsed - 480); // minutes past 8h
-            const overtimeHours = Math.round((otMinutesWorked / 60) * 100) / 100;
-            
-            // If there was an open OT session, calculate OT from ot_clock_in instead
-            let finalOT = overtimeHours;
-            const updatePayload: Record<string, unknown> = {};
-            if (record.ot_clock_in && !record.ot_clock_out) {
-              const otClockIn = new Date(record.ot_clock_in);
-              const otSessionMinutes = differenceInMinutes(now, otClockIn);
-              finalOT = Math.max(0, Math.round((otSessionMinutes / 60) * 100) / 100);
-              updatePayload.ot_clock_out = now.toISOString();
-            }
+            // OT only counts from actual OT scans, NOT from time past 8 hours
+            // If worker had a completed OT session (ot_clock_in + ot_clock_out), preserve that OT
+            // Otherwise, no OT — worker didn't scan for it
+            const finalOT = (record.ot_clock_in && record.ot_clock_out)
+              ? (record.overtime_hours || 0)
+              : 0;
             
             const currentNotes = record.notes || '';
             const isSameDay = clockInDay.getTime() === todayStart.getTime();
             const auditNote = isSameDay 
-              ? 'Auto-clocked out at 16h (same-day shift - forgot to clock out)'
+              ? 'Auto-clocked out at 9h15m (same-day shift)'
               : 'Auto-clocked out at 10h (overnight shift)';
             const updatedNotes = currentNotes ? `${currentNotes}\n${auditNote}` : auditNote;
             
@@ -238,7 +229,6 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
                 overtime_hours: finalOT,
                 status: 'clocked_out',
                 notes: updatedNotes,
-                ...updatePayload
               })
               .eq('id', record.id);
             
