@@ -165,6 +165,15 @@ export const ScanPage: React.FC = () => {
     setActiveAttendance(active || null);
 
     if (active) {
+      // Prevent double-scan clock-out: only show clock-out modal if shift has been active for 15+ minutes
+      const clockInTime = new Date(active.clock_in).getTime();
+      const elapsedMinutes = (Date.now() - clockInTime) / 60000;
+      if (elapsedMinutes < 15) {
+        const remainingMinutes = Math.ceil(15 - elapsedMinutes);
+        setMessage({ type: 'error', text: `${worker.full_name} just clocked in. Cannot clock out for ${remainingMinutes} more minute(s).` });
+        setIsProcessing(false);
+        return;
+      }
       setShowQuotaModal(true);
     } else {
       const result = await clockIn(worker.id, user?.id || '');

@@ -328,10 +328,13 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       const clockIn = new Date(record.clock_in);
       const minutesWorked = differenceInMinutes(clockOut, clockIn);
 
-      // Prevent instant clock-out (less than 60 seconds since clock-in)
-      const MINIMUM_SHIFT_DURATION_SECONDS = 60;
+      // Prevent premature clock-out (less than 15 minutes since clock-in)
+      // This guards against accidental double-scans triggering early clock-outs
+      const MINIMUM_SHIFT_DURATION_SECONDS = 900; // 15 minutes
       if (!isShiftDurationValid(clockIn.getTime(), clockOut.getTime(), MINIMUM_SHIFT_DURATION_SECONDS)) {
-        throw new Error('Cannot clock out within 60 seconds of clocking in. Please try again later.');
+        const elapsedSeconds = Math.floor((clockOut.getTime() - clockIn.getTime()) / 1000);
+        const remainingMinutes = Math.ceil((MINIMUM_SHIFT_DURATION_SECONDS - elapsedSeconds) / 60);
+        throw new Error(`Cannot clock out yet. Shift must be at least 15 minutes. Please wait ${remainingMinutes} more minute(s).`);
       }
 
       const actualHoursWorked = Math.round((minutesWorked / 60) * 100) / 100;
