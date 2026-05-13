@@ -300,7 +300,27 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
         `)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If the error is a unique constraint violation (duplicate IN due to network lag),
+        // we silently catch it and fetch the worker's true active shift to sync local state.
+        if (error.code === '23505') {
+          const { data: existing, error: fetchError } = await supabase
+            .from('attendance')
+            .select('*, worker:workers(*)')
+            .eq('worker_id', workerId)
+            .eq('status', 'clocked_in')
+            .single();
+            
+          if (!fetchError && existing) {
+            set((state) => ({
+              todayRecords: [existing, ...state.todayRecords.filter((r) => r.id !== existing.id)],
+              isLoading: false,
+            }));
+            return existing;
+          }
+        }
+        throw error;
+      }
       set((state) => ({
         todayRecords: [data, ...state.todayRecords],
         isLoading: false,
