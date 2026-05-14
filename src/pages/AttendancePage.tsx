@@ -26,6 +26,8 @@ export const AttendancePage: React.FC = () => {
   const [editForm, setEditForm] = useState({
     clockIn: '',
     clockOut: '',
+    otClockIn: '',
+    otClockOut: '',
     hoursWorked: '',
     overtimeHours: '',
     status: '',
@@ -165,6 +167,8 @@ export const AttendancePage: React.FC = () => {
     setEditForm({
       clockIn: record.clock_in ? format(new Date(record.clock_in), "yyyy-MM-dd'T'HH:mm") : '',
       clockOut: record.clock_out ? format(new Date(record.clock_out), "yyyy-MM-dd'T'HH:mm") : '',
+      otClockIn: record.ot_clock_in ? format(new Date(record.ot_clock_in), "yyyy-MM-dd'T'HH:mm") : '',
+      otClockOut: record.ot_clock_out ? format(new Date(record.ot_clock_out), "yyyy-MM-dd'T'HH:mm") : '',
       hoursWorked: record.hours_worked?.toString() || '',
       overtimeHours: record.overtime_hours?.toString() || '',
       status: record.status,
@@ -186,6 +190,18 @@ export const AttendancePage: React.FC = () => {
       }
       if (editForm.clockOut) {
         updateData.clock_out = new Date(editForm.clockOut).toISOString();
+      } else {
+        updateData.clock_out = null;
+      }
+      if (editForm.otClockIn) {
+        updateData.ot_clock_in = new Date(editForm.otClockIn).toISOString();
+      } else {
+        updateData.ot_clock_in = null;
+      }
+      if (editForm.otClockOut) {
+        updateData.ot_clock_out = new Date(editForm.otClockOut).toISOString();
+      } else {
+        updateData.ot_clock_out = null;
       }
       if (editForm.hoursWorked) {
         updateData.hours_worked = parseFloat(editForm.hoursWorked);
@@ -241,7 +257,7 @@ export const AttendancePage: React.FC = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Worker', 'Employee ID', 'Clock In', 'Clock Out', 'Hours', 'OT Hours', 'Status', 'Bags'];
+    const headers = ['Date', 'Worker', 'Employee ID', 'Clock In', 'Clock Out', 'Hours', 'OT In', 'OT Out', 'OT Hours', 'Status', 'Bags'];
     const rows = filteredRecords.map((r) => [
       formatDate(r.clock_in),
       r.worker?.full_name || '',
@@ -249,6 +265,8 @@ export const AttendancePage: React.FC = () => {
       formatDateTime(r.clock_in),
       r.clock_out ? formatDateTime(r.clock_out) : '',
       r.hours_worked?.toFixed(2) || '',
+      r.ot_clock_in ? formatDateTime(r.ot_clock_in) : '',
+      r.ot_clock_out ? formatDateTime(r.ot_clock_out) : '',
       r.overtime_hours?.toFixed(2) || '',
       r.status,
       r.bags_completed || '',
@@ -388,6 +406,12 @@ export const AttendancePage: React.FC = () => {
                       Hours
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      OT In
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      OT Out
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       OT Hours
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -425,6 +449,12 @@ export const AttendancePage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.hours_worked ? formatHours(record.hours_worked) : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.ot_clock_in ? formatDateTime(record.ot_clock_in) : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.ot_clock_out ? formatDateTime(record.ot_clock_out) : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.overtime_hours ? formatHours(record.overtime_hours) : '-'}
@@ -591,6 +621,27 @@ export const AttendancePage: React.FC = () => {
                   type="datetime-local"
                   value={editForm.clockOut}
                   onChange={(e) => setEditForm({ ...editForm, clockOut: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">OT Clock In</label>
+                <input
+                  type="datetime-local"
+                  value={editForm.otClockIn}
+                  onChange={(e) => setEditForm({ ...editForm, otClockIn: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">OT Clock Out</label>
+                <input
+                  type="datetime-local"
+                  value={editForm.otClockOut}
+                  onChange={(e) => setEditForm({ ...editForm, otClockOut: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

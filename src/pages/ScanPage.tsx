@@ -326,7 +326,7 @@ export const ScanPage: React.FC = () => {
                         {record.ot_clock_in && !record.ot_clock_out && (
                           <Badge variant="warning">
                             <Zap className="w-3 h-3 mr-1" />
-                            OT
+                            OT since {formatTime(record.ot_clock_in)}
                           </Badge>
                         )}
                         {differenceInMinutes(new Date(), new Date(record.clock_in)) >= 480 && (
@@ -369,6 +369,11 @@ export const ScanPage: React.FC = () => {
                           <p className="text-xs text-gray-500">
                             {formatTime(record.clock_in)} - {record.clock_out ? formatTime(record.clock_out) : 'N/A'}
                           </p>
+                          {record.ot_clock_in && (
+                            <p className="text-xs text-orange-600 mt-0.5">
+                              OT: {formatTime(record.ot_clock_in)} - {record.ot_clock_out ? formatTime(record.ot_clock_out) : 'N/A'}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           {record.hours_worked && (
