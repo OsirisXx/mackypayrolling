@@ -17,48 +17,13 @@ export const DashboardPage: React.FC = () => {
     fetchTodayAttendance();
   }, [fetchWorkers, fetchTodayAttendance]);
 
-  // Seamlessly deduplicate historical "Dual IN" and "Phantom" shifts
-  // caused by past network lag. If a worker has multiple records with
-  // clock_in times within 15 minutes of each other, we only count/display one.
-  const displayRecords = React.useMemo(() => {
-    const unique = new Map<string, typeof todayRecords[0]>();
-    
-    // Sort to prioritize keeping completed shifts over open phantom shifts
-    const sorted = [...todayRecords].sort((a, b) => {
-      if (a.status !== 'clocked_in' && b.status === 'clocked_in') return -1;
-      if (a.status === 'clocked_in' && b.status !== 'clocked_in') return 1;
-      return new Date(a.clock_in).getTime() - new Date(b.clock_in).getTime();
-    });
-
-    sorted.forEach(record => {
-      let isDuplicate = false;
-      for (const existing of unique.values()) {
-        if (existing.worker_id === record.worker_id) {
-          const timeDiff = Math.abs(new Date(existing.clock_in).getTime() - new Date(record.clock_in).getTime());
-          if (timeDiff < 15 * 60 * 1000) {
-            isDuplicate = true;
-            break;
-          }
-        }
-      }
-      if (!isDuplicate) {
-        unique.set(record.id, record);
-      }
-    });
-    
-    // Restore chronological order for the table
-    return Array.from(unique.values()).sort((a, b) => 
-      new Date(b.clock_in).getTime() - new Date(a.clock_in).getTime()
-    );
-  }, [todayRecords]);
-
   const activeWorkers = workers.filter((w) => w.is_active).length;
-  const clockedInToday = displayRecords.filter((r) => r.status === 'clocked_in').length;
-  const completedToday = displayRecords.filter(
+  const clockedInToday = todayRecords.filter((r) => r.status === 'clocked_in').length;
+  const completedToday = todayRecords.filter(
     (r) => r.status === 'clocked_out' || r.status === 'completed_quota'
   ).length;
 
-  const totalHoursToday = displayRecords.reduce(
+  const totalHoursToday = todayRecords.reduce(
     (sum, r) => sum + (r.hours_worked || 0),
     0
   );
@@ -133,7 +98,7 @@ export const DashboardPage: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900">Today's Attendance</h2>
         </CardHeader>
         <CardContent className="p-0">
-          {displayRecords.length === 0 ? (
+          {todayRecords.length === 0 ? (
             <div className="p-6 text-center text-gray-500">
               No attendance records for today
             </div>
@@ -152,6 +117,12 @@ export const DashboardPage: React.FC = () => {
                       Clock Out
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      OT In
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      OT Out
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Hours
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -160,7 +131,7 @@ export const DashboardPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {displayRecords.map((record) => (
+                  {todayRecords.map((record) => (
                     <tr key={record.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="font-medium text-gray-900">
@@ -175,6 +146,12 @@ export const DashboardPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.clock_out ? formatTime(record.clock_out) : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.ot_clock_in ? formatTime(record.ot_clock_in) : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {record.ot_clock_out ? formatTime(record.ot_clock_out) : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.hours_worked?.toFixed(2) || '-'}
