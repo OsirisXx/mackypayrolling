@@ -22,7 +22,7 @@ interface AttendanceState {
   clockOut: (attendanceId: string) => Promise<void>;
   markCompletedByQuota: (attendanceId: string, bagsCompleted: number, notes?: string) => Promise<void>;
   otClockIn: (workerId: string) => Promise<boolean>;
-  otClockOut: (workerId: string) => Promise<boolean>;
+  otClockOut: (workerId: string, breakMinutes?: number) => Promise<boolean>;
   getActiveAttendance: (workerId: string) => AttendanceWithWorker | undefined;
   softDeleteAttendance: (attendanceId: string, reason: string) => Promise<void>;
   clearError: () => void;
@@ -309,6 +309,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
             .select('*, worker:workers(*)')
             .eq('worker_id', workerId)
             .eq('status', 'clocked_in')
+            .is('deleted_at', null)
             .single();
             
           if (!fetchError && existing) {
@@ -519,7 +520,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
     }
   },
 
-  otClockOut: async (workerId: string) => {
+  otClockOut: async (workerId: string, breakMinutes: number = 0) => {
     set({ isLoading: true, error: null });
     try {
       // Find today's attendance record with active OT
@@ -534,17 +535,26 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
       const otClockOut = new Date();
       const otClockIn = new Date(record.ot_clock_in!);
       const otMinutes = differenceInMinutes(otClockOut, otClockIn);
-      const otHours = Math.round((otMinutes / 60) * 100) / 100;
+      const adjustedOtMinutes = Math.max(0, otMinutes - breakMinutes);
+      const otHours = Math.round((adjustedOtMinutes / 60) * 100) / 100;
 
       // Add to existing overtime hours
       const currentOT = record.overtime_hours || 0;
       const totalOT = currentOT + otHours;
+
+      const currentNotes = record.notes || '';
+      let breakNote = '';
+      if (breakMinutes > 0) {
+        breakNote = `[OT Break: -${breakMinutes} mins]`;
+      }
+      const updatedNotes = breakNote ? (currentNotes ? `${currentNotes}\n${breakNote}` : breakNote) : (currentNotes || null);
 
       const { data, error } = await supabase
         .from('attendance')
         .update({
           ot_clock_out: otClockOut.toISOString(),
           overtime_hours: totalOT,
+          notes: updatedNotes,
         })
         .eq('id', record.id)
         .select(`
@@ -572,7 +582,7 @@ export const useAttendanceStore = create<AttendanceState>((set, get) => ({
 
   getActiveAttendance: (workerId: string) => {
     return get().todayRecords.find(
-      (r) => r.worker_id === workerId && r.status === 'clocked_in'
+      (r) => r.worker_id === workerId && (r.status === 'clocked_in' || (r.ot_clock_in && !r.ot_clock_out))
     );
   },
 

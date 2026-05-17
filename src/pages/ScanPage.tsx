@@ -40,6 +40,8 @@ export const ScanPage: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCustomBreakInput, setShowCustomBreakInput] = useState(false);
+  const [customBreakMins, setCustomBreakMins] = useState('');
   
   // OT Mode state
   const [isOTMode, setIsOTMode] = useState(false);
@@ -132,14 +134,12 @@ export const ScanPage: React.FC = () => {
 
       // Check if already in OT session
       if (todayRecord.ot_clock_in && !todayRecord.ot_clock_out) {
-        // OT Clock Out
-        const success = await otClockOut(worker.id);
-        if (success) {
-          setMessage({ type: 'success', text: `${worker.full_name} OT clocked out!` });
-          lastActionTimeRef.current = Date.now();
-          workerCooldownMap.current.set(worker.id, Date.now());
-          fetchTodayAttendance();
-        }
+        // Instead of immediate clock out, show the modal to ask for break deduction
+        setScannedWorker(worker);
+        setActiveAttendance(todayRecord);
+        setShowQuotaModal(true);
+        setIsProcessing(false);
+        return;
       } else {
         // OT Clock In
         const success = await otClockIn(worker.id);
@@ -220,21 +220,24 @@ export const ScanPage: React.FC = () => {
     fetchTodayAttendance();
   };
 
-  const handleOTClockOut = async () => {
+  const handleOTClockOut = async (breakMinutes: number = 0) => {
     if (!scannedWorker) return;
     
-    const success = await otClockOut(scannedWorker.id);
+    const success = await otClockOut(scannedWorker.id, breakMinutes);
     if (success) {
-      setMessage({ type: 'success', text: `${scannedWorker.full_name} OT clocked out!` });
+      setMessage({ type: 'success', text: `${scannedWorker.full_name} OT clocked out!${breakMinutes > 0 ? ` (${breakMinutes}m break deducted)` : ''}` });
       lastActionTimeRef.current = Date.now();
       workerCooldownMap.current.set(scannedWorker.id, Date.now());
     } else {
       const storeError = useAttendanceStore.getState().error;
       setMessage({ type: 'error', text: storeError || `Failed to clock out OT for ${scannedWorker.full_name}.` });
     }
+    setShowCustomBreakInput(false);
+    setCustomBreakMins('');
     setShowQuotaModal(false);
     setScannedWorker(null);
     setActiveAttendance(null);
+    setIsOTMode(false);
     fetchTodayAttendance();
   };
 
@@ -242,7 +245,7 @@ export const ScanPage: React.FC = () => {
   const isWorkerInOT = activeAttendance?.ot_clock_in && !activeAttendance?.ot_clock_out;
 
   return (
-    <div className="space-y-6">
+    <div className={`-m-8 p-8 min-h-screen space-y-6 transition-colors duration-500 ease-in-out ${isOTMode ? 'bg-orange-50/80' : ''}`}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Scan QR Code</h1>
@@ -407,6 +410,8 @@ export const ScanPage: React.FC = () => {
           setShowQuotaModal(false);
           setScannedWorker(null);
           setActiveAttendance(null);
+          setShowCustomBreakInput(false);
+          setCustomBreakMins('');
         }}
         title={isWorkerInOT ? "OT Clock Out" : "Clock Out Options"}
         size="md"
@@ -441,18 +446,78 @@ export const ScanPage: React.FC = () => {
               /* OT Clock Out UI */
               <div className="space-y-4">
                 <p className="text-sm text-orange-700 bg-orange-50 p-3 rounded-lg">
-                  This worker is currently in an <strong>overtime session</strong>. Click below to end their OT.
+                  This worker is currently in an <strong>overtime session</strong>. Did they take a break?
                 </p>
-                <Button
-                  variant="danger"
-                  className="w-full"
-                  size="lg"
-                  onClick={handleOTClockOut}
-                  isLoading={isLoading}
-                >
-                  <Zap className="w-5 h-5 mr-2" />
-                  End Overtime
-                </Button>
+                
+                {!showCustomBreakInput ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      className="w-full py-4 border-gray-300 hover:bg-gray-50"
+                      onClick={() => handleOTClockOut(0)}
+                      isLoading={isLoading}
+                    >
+                      No Break
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full py-4 border-gray-300 hover:bg-gray-50"
+                      onClick={() => handleOTClockOut(30)}
+                      isLoading={isLoading}
+                    >
+                      30 Mins
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full py-4 border-gray-300 hover:bg-gray-50 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                      onClick={() => handleOTClockOut(60)}
+                      isLoading={isLoading}
+                    >
+                      1 Hour
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="w-full py-4"
+                      onClick={() => setShowCustomBreakInput(true)}
+                      disabled={isLoading}
+                    >
+                      Custom
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <p className="text-sm font-medium text-gray-700">Enter custom break minutes:</p>
+                    <Input
+                      type="number"
+                      value={customBreakMins}
+                      onChange={(e) => setCustomBreakMins(e.target.value)}
+                      placeholder="e.g. 45"
+                      min="0"
+                    />
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setShowCustomBreakInput(false);
+                          setCustomBreakMins('');
+                        }}
+                        disabled={isLoading}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="primary"
+                        className="flex-1"
+                        onClick={() => handleOTClockOut(parseInt(customBreakMins) || 0)}
+                        isLoading={isLoading}
+                        disabled={!customBreakMins}
+                      >
+                        Confirm
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* Regular Clock Out UI */

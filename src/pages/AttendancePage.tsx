@@ -420,6 +420,9 @@ export const AttendancePage: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Bags
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Notes
+                    </th>
                     {isAdmin && (
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Actions
@@ -464,6 +467,9 @@ export const AttendancePage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {record.bags_completed || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={record.notes || ''}>
+                        {record.notes || '-'}
                       </td>
                       {isAdmin && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
